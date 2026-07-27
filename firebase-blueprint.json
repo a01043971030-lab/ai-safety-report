@@ -1,0 +1,94 @@
+{
+  "entities": {
+    "SafetyReport": {
+      "title": "SafetyReport",
+      "description": "A construction safety inspection report containing project metadata, site photo items, AI-generated findings, and structural safety checklists.",
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "integer",
+          "description": "Timestamp when the report was created"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "description": "Timestamp when the report was last updated"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Name of the safety diagnostics company"
+        },
+        "projectName": {
+          "type": "string",
+          "description": "Name of the construction project"
+        }
+      },
+      "required": ["createdAt", "updatedAt", "companyName", "projectName"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Information about registered construction safety users and their membership status.",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "companyName": {
+          "type": "string"
+        },
+        "representative": {
+          "type": "string"
+        },
+        "businessNumber": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "reportsCreatedCount": {
+          "type": "integer"
+        }
+      },
+      "required": ["username", "companyName", "representative", "businessNumber", "address", "phone", "email", "status", "reportsCreatedCount"]
+    },
+    "NoticeItem": {
+      "title": "NoticeItem",
+      "description": "An announcement or notice from administrators regarding safety guides, function updates, or service notices.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tag": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "tag", "title", "date", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/safety_reports/{reportId}": {
+      "schema": "SafetyReport",
+      "description": "Highly secure collection storing construction safety reports and automated AI audits."
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores details of registered users and their current membership status."
+    },
+    "/notices/{noticeId}": {
+      "schema": "NoticeItem",
+      "description": "Collection storing announcement and notice details."
+    }
+  }
+}
