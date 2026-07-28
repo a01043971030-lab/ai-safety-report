@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { SafetyReport, UserProfile, MemberStatus, NoticeItem } from "../types";
+import { SafetyReport, UserProfile, MemberStatus, NoticeItem, LoginLogItem } from "../types";
 import { 
   Settings, 
   User, 
@@ -27,7 +27,11 @@ import {
   FileText,
   LockKeyhole,
   CheckCircle,
-  HardHat
+  HardHat,
+  History,
+  Activity,
+  Calendar,
+  Globe
 } from "lucide-react";
 
 interface AdminDashboardProps {
@@ -45,6 +49,8 @@ interface AdminDashboardProps {
   notices: NoticeItem[];
   onSaveNotice: (notice: NoticeItem) => void;
   onDeleteNotice: (id: string) => void;
+  loginLogs?: LoginLogItem[];
+  onRefreshLoginLogs?: () => void;
 }
 
 export default function AdminDashboard({
@@ -61,13 +67,21 @@ export default function AdminDashboard({
   onCreateReportForUser,
   notices,
   onSaveNotice,
-  onDeleteNotice
+  onDeleteNotice,
+  loginLogs = [],
+  onRefreshLoginLogs
 }: AdminDashboardProps) {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<"REPORTS" | "WRITE" | "EDIT_PROFILE" | "CHANGE_PASSWORD">("REPORTS");
+  const [activeTab, setActiveTab] = useState<"REPORTS" | "LOGIN_HISTORY" | "EDIT_PROFILE" | "CHANGE_PASSWORD">("REPORTS");
   const [userSearch, setUserSearch] = useState("");
   const [reportSearch, setReportSearch] = useState("");
-  const [dashboardMode, setDashboardMode] = useState<"MEMBERS" | "NOTICES">("MEMBERS");
+  const [dashboardMode, setDashboardMode] = useState<"MEMBERS" | "REPORTS_ALL" | "LOGIN_LOGS" | "NOTICES">("MEMBERS");
+
+  // Search & Filter states for Master Reports and Login Logs
+  const [globalReportSearch, setGlobalReportSearch] = useState("");
+  const [globalCompanyFilter, setGlobalCompanyFilter] = useState("ALL");
+  const [loginLogSearch, setLoginLogSearch] = useState("");
+  const [loginLogStatusFilter, setLoginLogStatusFilter] = useState("ALL");
 
   // Quick Report Detail Modal state
   const [previewModalReport, setPreviewModalReport] = useState<SafetyReport | null>(null);
@@ -152,6 +166,98 @@ export default function AdminDashboard({
     link.click();
     document.body.removeChild(link);
   };
+
+  // CSV Export for Login Logs
+  const handleDownloadLoginLogsCSV = () => {
+    const headers = ["접속일시", "회원아이디", "회사명", "대표자명", "접속결과", "IP주소", "접속기기/환경"];
+    const csvRows = [
+      headers.join(","),
+      ...loginLogs.map(l => [
+        `"${(l.loginAt || "").replace(/"/g, '""')}"`,
+        `"${(l.username || "").replace(/"/g, '""')}"`,
+        `"${(l.companyName || "").replace(/"/g, '""')}"`,
+        `"${(l.representative || "").replace(/"/g, '""')}"`,
+        `"${(l.status || "").replace(/"/g, '""')}"`,
+        `"${(l.ipAddress || "").replace(/"/g, '""')}"`,
+        `"${(l.device || "").replace(/"/g, '""')}"`
+      ].join(","))
+    ];
+
+    const csvContent = "\uFEFF" + csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `건설안전플랫폼_회원로그인이력_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // CSV Export for All Created Reports
+  const handleDownloadAllReportsCSV = () => {
+    const headers = ["회사명", "작성자ID", "공사명", "발주처", "시공사", "점검차수", "점검일자", "사진수", "최종수정일"];
+    const csvRows = [
+      headers.join(","),
+      ...reports.map(r => [
+        `"${(r.companyName || "").replace(/"/g, '""')}"`,
+        `"${(r.creatorUsername || "").replace(/"/g, '""')}"`,
+        `"${(r.projectName || "").replace(/"/g, '""')}"`,
+        `"${(r.client || "").replace(/"/g, '""')}"`,
+        `"${(r.contractor || "").replace(/"/g, '""')}"`,
+        `"${(r.checkDegree || "").replace(/"/g, '""')}"`,
+        `"${(r.checkDate || "").replace(/"/g, '""')}"`,
+        r.photos?.length || 0,
+        `"${new Date(r.updatedAt || Date.now()).toLocaleString("ko-KR")}"`
+      ].join(","))
+    ];
+
+    const csvContent = "\uFEFF" + csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `건설안전플랫폼_전체회원_보고서목록_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Filter Master Reports List
+  const filteredMasterReports = reports.filter(r => {
+    // Filter by company
+    if (globalCompanyFilter !== "ALL" && r.companyName !== globalCompanyFilter && r.creatorUsername !== globalCompanyFilter) {
+      return false;
+    }
+    // Search query
+    if (!globalReportSearch) return true;
+    const term = globalReportSearch.toLowerCase();
+    return (
+      (r.projectName && r.projectName.toLowerCase().includes(term)) ||
+      (r.companyName && r.companyName.toLowerCase().includes(term)) ||
+      (r.creatorUsername && r.creatorUsername.toLowerCase().includes(term)) ||
+      (r.client && r.client.toLowerCase().includes(term)) ||
+      (r.contractor && r.contractor.toLowerCase().includes(term)) ||
+      (r.checkDegree && r.checkDegree.toLowerCase().includes(term))
+    );
+  });
+
+  // Filter Login Logs List
+  const filteredLoginLogs = loginLogs.filter(l => {
+    // Filter by status
+    if (loginLogStatusFilter !== "ALL" && l.status !== loginLogStatusFilter) {
+      return false;
+    }
+    // Search query
+    if (!loginLogSearch) return true;
+    const term = loginLogSearch.toLowerCase();
+    return (
+      (l.username && l.username.toLowerCase().includes(term)) ||
+      (l.companyName && l.companyName.toLowerCase().includes(term)) ||
+      (l.representative && l.representative.toLowerCase().includes(term)) ||
+      (l.ipAddress && l.ipAddress.toLowerCase().includes(term))
+    );
+  });
 
   // Keep selected user sync'd with changes
   useEffect(() => {
@@ -744,23 +850,45 @@ export default function AdminDashboard({
       )}
 
       {/* Dashboard Mode Selector Tab Panel */}
-      <div className="flex border-b border-slate-200 mb-8 gap-6 text-sm font-bold">
+      <div className="flex flex-wrap border-b border-slate-200 mb-8 gap-2 sm:gap-6 text-sm font-bold">
         <button
           onClick={() => setDashboardMode("MEMBERS")}
-          className={`pb-3 px-2 border-b-2 transition-all cursor-pointer ${
+          className={`pb-3 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
             dashboardMode === "MEMBERS" ? "border-blue-600 text-blue-600 font-extrabold" : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
-          회원 및 보고서 관리
+          <Building2 className="w-4 h-4 text-blue-700" />
+          회원사 개별 관리
         </button>
+
+        <button
+          onClick={() => setDashboardMode("REPORTS_ALL")}
+          className={`pb-3 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            dashboardMode === "REPORTS_ALL" ? "border-blue-600 text-blue-600 font-extrabold" : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <FileText className="w-4 h-4 text-emerald-600" />
+          전체 회원 보고서 종합 센터 ({reports.length}건)
+        </button>
+
+        <button
+          onClick={() => setDashboardMode("LOGIN_LOGS")}
+          className={`pb-3 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+            dashboardMode === "LOGIN_LOGS" ? "border-blue-600 text-blue-600 font-extrabold" : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <History className="w-4 h-4 text-purple-600" />
+          회원 로그인/접속 이력 대장 ({loginLogs.length}건)
+        </button>
+
         <button
           onClick={() => setDashboardMode("NOTICES")}
-          className={`pb-3 px-2 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`pb-3 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
             dashboardMode === "NOTICES" ? "border-blue-600 text-blue-600 font-extrabold" : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
-          <AlertCircle className="w-4 h-4" />
-          공지사항 관리
+          <AlertCircle className="w-4 h-4 text-amber-500" />
+          공지사항 관리 ({notices.length}건)
         </button>
       </div>
 
@@ -1007,40 +1135,52 @@ export default function AdminDashboard({
               </div>
 
               {/* Operations Menu Tab Row */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   onClick={() => setActiveTab("REPORTS")}
-                  className={`py-2.5 px-1.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer flex flex-col justify-center items-center gap-1 text-center border ${
+                  className={`py-2 px-1 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer flex flex-col justify-center items-center gap-1 text-center border ${
                     activeTab === "REPORTS"
                       ? "bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/10"
                       : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
                   }`}
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileText className="w-3.5 h-3.5" />
                   보고서 결과
                 </button>
 
                 <button
+                  onClick={() => setActiveTab("LOGIN_HISTORY")}
+                  className={`py-2 px-1 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer flex flex-col justify-center items-center gap-1 text-center border ${
+                    activeTab === "LOGIN_HISTORY"
+                      ? "bg-purple-600 border-purple-500 text-white shadow-md shadow-purple-500/10"
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  접속 이력
+                </button>
+
+                <button
                   onClick={() => setActiveTab("EDIT_PROFILE")}
-                  className={`py-2.5 px-1.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer flex flex-col justify-center items-center gap-1 text-center border ${
+                  className={`py-2 px-1 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer flex flex-col justify-center items-center gap-1 text-center border ${
                     activeTab === "EDIT_PROFILE"
                       ? "bg-blue-600 border-blue-500 text-white shadow-md"
                       : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
                   }`}
                 >
-                  <Building className="w-4 h-4" />
+                  <Building className="w-3.5 h-3.5" />
                   회사정보 수정
                 </button>
 
                 <button
                   onClick={() => setActiveTab("CHANGE_PASSWORD")}
-                  className={`py-2.5 px-1.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer flex flex-col justify-center items-center gap-1 text-center border ${
+                  className={`py-2 px-1 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer flex flex-col justify-center items-center gap-1 text-center border ${
                     activeTab === "CHANGE_PASSWORD"
                       ? "bg-blue-600 border-blue-500 text-white shadow-md"
                       : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
                   }`}
                 >
-                  <Key className="w-4 h-4" />
+                  <Key className="w-3.5 h-3.5" />
                   비밀번호 변경
                 </button>
               </div>
@@ -1164,6 +1304,58 @@ export default function AdminDashboard({
                     ) : (
                       <div className="p-10 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs font-semibold bg-slate-50/50">
                         작성한 보고서가 존재하지 않습니다.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ================= TAB CONTENT 2: User's Login History ================= */}
+              {activeTab === "LOGIN_HISTORY" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span className="w-1.5 h-3 rounded-full bg-purple-600"></span>
+                      [{selectedUser.companyName}] 로그인 / 접속 이력
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      총 {loginLogs.filter(l => l.username === selectedUser.username).length}회 접속 시도
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                    {loginLogs.filter(l => l.username === selectedUser.username).length > 0 ? (
+                      loginLogs
+                        .filter(l => l.username === selectedUser.username)
+                        .map((log) => (
+                          <div 
+                            key={log.id} 
+                            className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between hover:bg-white hover:border-purple-200 transition-all text-xs"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                                  log.status === "성공" 
+                                    ? "bg-green-100 text-green-800 border border-green-200" 
+                                    : "bg-red-100 text-red-800 border border-red-200"
+                                }`}>
+                                  {log.status}
+                                </span>
+                                <span className="font-mono text-[11px] font-bold text-slate-800">
+                                  {log.loginAt}
+                                </span>
+                              </div>
+                              <div className="text-[10.5px] text-slate-500 flex items-center gap-3">
+                                <span>🌐 IP: {log.ipAddress || "-"}</span>
+                                <span>💻 기기: {log.device || "-"}</span>
+                              </div>
+                            </div>
+                            <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                          </div>
+                        ))
+                    ) : (
+                      <div className="p-8 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs font-semibold bg-slate-50">
+                        기록된 로그인 접속 이력이 없습니다.
                       </div>
                     )}
                   </div>
@@ -1350,6 +1542,351 @@ export default function AdminDashboard({
         </div>
 
       </div>
+      ) : dashboardMode === "REPORTS_ALL" ? (
+        /* ================= REPORTS_ALL MODE: Master Report Inspection Center ================= */
+        <div className="space-y-6 animate-fade-in text-slate-800">
+          
+          {/* Header & Stats Banner */}
+          <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 rounded-2xl shadow-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-xs">
+                <FileText className="w-4 h-4" />
+                MASTER REPORT INSPECTION CENTER
+              </div>
+              <h2 className="text-xl font-black tracking-tight">전체 회원사 작성 보고서 종합 열람 및 관리 센터</h2>
+              <p className="text-xs text-slate-300">
+                플랫폼 내 모든 회원사(기업)가 등록 및 생성한 안전 점검 보고서를 한눈에 조회, 검토 및 관리할 수 있습니다.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadAllReportsCSV}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                보고서 전체 대장 엑셀(CSV)
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              {/* Search Query */}
+              <div className="relative flex-1 min-w-[240px]">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="공사명, 회사명, 작성자ID, 발주처, 시공사 검색..."
+                  value={globalReportSearch}
+                  onChange={(e) => setGlobalReportSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-1 focus:ring-blue-500 text-slate-900"
+                />
+              </div>
+
+              {/* Company Filter Dropdown */}
+              <select
+                value={globalCompanyFilter}
+                onChange={(e) => setGlobalCompanyFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white"
+              >
+                <option value="ALL">🏢 전체 회원사 선택 (전체 {allUsers.length}개 사)</option>
+                {allUsers.map((u) => (
+                  <option key={u.id} value={u.companyName}>
+                    {u.companyName} ({u.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <span className="text-xs font-extrabold text-slate-600">
+              검색결과: <strong className="text-blue-700">{filteredMasterReports.length}</strong>건 / 전체 {reports.length}건
+            </span>
+          </div>
+
+          {/* Master Report Grid / Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredMasterReports.length > 0 ? (
+              filteredMasterReports.map((report) => (
+                <div
+                  key={report.id}
+                  className="bg-white border border-slate-200 hover:border-blue-400 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Building className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="text-xs font-extrabold text-slate-900 truncate">
+                          {report.companyName || "미지정 회사"}
+                        </span>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">
+                          @{report.creatorUsername}
+                        </span>
+                      </div>
+                      <span className="text-[10px] bg-blue-50 text-blue-800 font-extrabold px-2 py-0.5 rounded-full shrink-0">
+                        {report.checkDegree || "정기점검"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 leading-snug line-clamp-2">
+                        {report.projectName || "(공사명 없음)"}
+                      </h3>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        발주: <strong>{report.client || "-"}</strong> | 시공: <strong>{report.contractor || "-"}</strong>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-150 text-slate-600">
+                      <span>📸 사진대지: <strong className="text-blue-700">{report.photos?.length || 0}장</strong></span>
+                      <span>📅 점검일: <strong className="text-slate-800">{report.checkDate || "-"}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-6 gap-1 border-t border-slate-100 pt-3">
+                    <button
+                      onClick={() => setPreviewModalReport(report)}
+                      className="py-1.5 px-1 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 transition-colors cursor-pointer shadow-sm"
+                      title="관리자 모달창에서 보고서 상세 내용 확인"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-white" />
+                      상세내용
+                    </button>
+
+                    <button
+                      onClick={() => onViewReport(report)}
+                      className="py-1.5 px-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 transition-colors cursor-pointer"
+                      title="전체 화면 뷰어"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-slate-700" />
+                      전체화면
+                    </button>
+
+                    <button
+                      onClick={() => triggerDirectWordDownload(report)}
+                      className="py-1.5 px-1 bg-blue-50 hover:bg-blue-100 text-blue-800 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 border border-blue-100 transition-colors cursor-pointer"
+                      title="한글(MS Word) 다운로드"
+                    >
+                      <Download className="w-3.5 h-3.5 text-blue-600" />
+                      한글다운
+                    </button>
+
+                    <button
+                      onClick={() => onViewReport(report)}
+                      className="py-1.5 px-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 transition-colors cursor-pointer"
+                      title="인쇄 및 PDF 출력"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-slate-600" />
+                      프린트
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const newRep: SafetyReport = {
+                          ...report,
+                          id: `report_${Date.now()}_copy`,
+                          projectName: `${report.projectName} (관리자 복사본)`,
+                          createdAt: Date.now(),
+                          updatedAt: Date.now()
+                        };
+                        onSaveReport(newRep);
+                        alert("보고서가 복사되었습니다.");
+                      }}
+                      className="py-1.5 px-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 border border-amber-100 transition-colors cursor-pointer"
+                      title="보고서 복사"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-amber-600" />
+                      복사
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (report.id && window.confirm(`[${report.projectName}] 보고서를 정말 삭제하시겠습니까?`)) {
+                          onDeleteReport(report.id);
+                        }
+                      }}
+                      className="py-1.5 px-1 bg-red-50 hover:bg-red-100 text-red-700 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 border border-red-100 transition-colors cursor-pointer"
+                      title="삭제"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 space-y-2">
+                <FileText className="w-10 h-10 mx-auto text-slate-300" />
+                <p className="text-sm font-extrabold text-slate-600">조건에 일치하는 보고서가 없습니다.</p>
+                <p className="text-xs text-slate-400">검색어나 선택한 회원사를 변경해 보세요.</p>
+              </div>
+            )}
+          </div>
+
+        </div>
+      ) : dashboardMode === "LOGIN_LOGS" ? (
+        /* ================= LOGIN_LOGS MODE: Member Login Audit Log ================= */
+        <div className="space-y-6 animate-fade-in text-slate-800">
+          
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white p-6 rounded-2xl shadow-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-purple-400 font-extrabold text-xs">
+                <History className="w-4 h-4" />
+                MEMBER LOGIN AUDIT LOG
+              </div>
+              <h2 className="text-xl font-black tracking-tight">회원사 로그인 접속 및 사용 이력 대장</h2>
+              <p className="text-xs text-slate-300">
+                각 회원사(기업)의 시스템 접속 일시, 접속 IP 주소, 이용 환경 및 접속 상태를 종합적으로 추적 모니터링합니다.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadLoginLogsCSV}
+                className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                접속 이력 엑셀(CSV) 다운로드
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                <Activity className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-500 font-bold">총 누적 접속 시도 건수</div>
+                <div className="text-xl font-black text-slate-900">{loginLogs.length}건</div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-green-50 text-green-700 flex items-center justify-center font-bold">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-500 font-bold">정상 접속 성공 시도</div>
+                <div className="text-xl font-black text-green-700">
+                  {loginLogs.filter(l => l.status === "성공").length}건
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-700 flex items-center justify-center font-bold">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-500 font-bold">비밀번호 오류 / 실패 기록</div>
+                <div className="text-xl font-black text-red-600">
+                  {loginLogs.filter(l => l.status !== "성공").length}건
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              <div className="relative flex-1 min-w-[240px]">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="회원 아이디, 회사명, 대표자, IP 주소 검색..."
+                  value={loginLogSearch}
+                  onChange={(e) => setLoginLogSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-1 focus:ring-purple-500 text-slate-900"
+                />
+              </div>
+
+              <select
+                value={loginLogStatusFilter}
+                onChange={(e) => setLoginLogStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white"
+              >
+                <option value="ALL">전체 접속 상태</option>
+                <option value="성공">로그인 성공</option>
+                <option value="비밀번호 오류">비밀번호 오류</option>
+                <option value="계정 잠김">계정 잠김</option>
+              </select>
+            </div>
+
+            <button
+              onClick={() => onRefreshLoginLogs && onRefreshLoginLogs()}
+              className="flex items-center gap-1 text-xs text-slate-600 hover:text-purple-700 font-bold cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              새로고침
+            </button>
+          </div>
+
+          {/* Audit Table */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-900 text-white font-extrabold text-[11px]">
+                    <th className="p-3 pl-4">접속 일시</th>
+                    <th className="p-3">회원 아이디</th>
+                    <th className="p-3">회사명</th>
+                    <th className="p-3">대표자</th>
+                    <th className="p-3 text-center">접속 상태</th>
+                    <th className="p-3">IP 주소 / 위치</th>
+                    <th className="p-3 pr-4">접속 환경 / 기기</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                  {filteredLoginLogs.length > 0 ? (
+                    filteredLoginLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-purple-50/40 transition-colors">
+                        <td className="p-3 pl-4 font-mono font-bold text-slate-900">
+                          {log.loginAt}
+                        </td>
+                        <td className="p-3 font-mono font-bold text-purple-700">
+                          @{log.username}
+                        </td>
+                        <td className="p-3 font-extrabold text-slate-900">
+                          {log.companyName || "-"}
+                        </td>
+                        <td className="p-3 text-slate-600">
+                          {log.representative || "-"}
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black inline-block ${
+                            log.status === "성공"
+                              ? "bg-green-100 text-green-800 border border-green-200"
+                              : "bg-red-100 text-red-800 border border-red-200"
+                          }`}>
+                            {log.status}
+                          </span>
+                        </td>
+                        <td className="p-3 text-slate-600 font-mono text-[11px]">
+                          {log.ipAddress || "-"}
+                        </td>
+                        <td className="p-3 pr-4 text-slate-500 text-[11px]">
+                          {log.device || "-"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="p-10 text-center text-slate-400 font-semibold bg-slate-50">
+                        조건에 적합한 로그인 이력이 존재하지 않습니다.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in text-slate-800">
           {/* ================= LEFT GRID: Notices List ================= */}

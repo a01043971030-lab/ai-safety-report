@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SafetyReport, PhotoItem, SampleTemplateConfig, PHOTO_MAIN_CATEGORIES, PHOTO_SUB_CATEGORIES } from "../types";
+import { SafetyReport, PhotoItem, SampleTemplateConfig, SampleFileItem, PHOTO_MAIN_CATEGORIES, PHOTO_SUB_CATEGORIES } from "../types";
 import GoogleMapsSelector from "./GoogleMapsSelector";
 import { 
   Plus, 
@@ -169,10 +169,12 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
 
   // Sample Registration Modal State
   const [isSampleModalOpen, setIsSampleModalOpen] = useState(false);
+  const [isProcessingSampleFiles, setIsProcessingSampleFiles] = useState(false);
   const [sampleFormState, setSampleFormState] = useState<SampleTemplateConfig>(() => {
     return report.sampleConfig || {
       sampleName: DEFAULT_PRESET_SAMPLES[0].name,
       sampleContent: DEFAULT_PRESET_SAMPLES[0].content,
+      sampleFiles: [],
       fontStyle: DEFAULT_PRESET_SAMPLES[0].fontStyle,
       toneStyle: DEFAULT_PRESET_SAMPLES[0].toneStyle,
       tableStyle: DEFAULT_PRESET_SAMPLES[0].tableStyle
@@ -186,26 +188,189 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
       sampleConfig: config
     }));
     setIsSampleModalOpen(false);
-    alert(`✅ [${config.sampleName || '등록 샘플'}] 서식이 성공적으로 등록되었습니다!\n글꼴: ${config.fontStyle || '맑은 고딕'} / 어투: ${config.toneStyle || '격식체'}\n보고서 자동 집필 시 이 샘플 목차와 어투가 100% 동일하게 복제됩니다.`);
+    const fileCount = config.sampleFiles?.length || 0;
+    alert(`✅ [${config.sampleName || '등록 샘플'}] 서식 및 샘플 파일(${fileCount}장)이 성공적으로 저장되었습니다!\n글꼴: ${config.fontStyle || '맑은 고딕'} / 어투: ${config.toneStyle || '격식체'}\n보고서 자동 집필 시 등록된 목차와 샘플 양식이 100% 동일하게 복제됩니다.`);
   };
 
-  const handleSampleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const createSmallImageThumbnail = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const maxDim = 300;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const thumbUrl = canvas.toDataURL("image/jpeg", 0.7);
+            URL.revokeObjectURL(url);
+            resolve(thumbUrl);
+            return;
+          }
+        } catch (e) {
+          console.error("Thumbnail creation error:", e);
+        }
+        URL.revokeObjectURL(url);
+        resolve("");
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve("");
+      };
+      img.src = url;
+    });
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) {
-        setSampleFormState(prev => ({
-          ...prev,
-          sampleName: file.name.replace(/\.[^/.]+$/, "") + " (사용자 업로드 서식)",
-          sampleContent: text
-        }));
-        alert(`📄 [${file.name}] 파일 내용이 샘플 입력창에 성공적으로 로드되었습니다!`);
+  const handleSampleMultiFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFiles = e.target.files;
+    if (!rawFiles || rawFiles.length === 0) return;
+    const files: File[] = Array.from(rawFiles);
+
+    const currentFiles = sampleFormState.sampleFiles || [];
+    if (currentFiles.length >= 30) {
+      alert("⚠️ 이미 최대 30장의 샘플 파일/페이지가 등록되어 있습니다. 기존 등록 파일 삭제 후 추가해 주세요.");
+      return;
+    }
+
+    const availableSlots = 30 - currentFiles.length;
+    const filesToProcess: File[] = files.slice(0, availableSlots);
+
+    if (files.length > availableSlots) {
+      alert(`⚠️ 샘플 등록은 최대 30장까지 지원됩니다. 선택하신 파일 중 상위 ${availableSlots}개만 추가됩니다.`);
+    }
+
+    setIsProcessingSampleFiles(true);
+
+    try {
+      const newSampleItems: SampleFileItem[] = [];
+      let addedSummaryText = "";
+
+      for (const file of filesToProcess) {
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+        const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExt);
+        const isPdf = file.type === 'application/pdf' || fileExt === 'pdf';
+        const isText = ['txt', 'md', 'csv', 'json'].includes(fileExt);
+
+        const itemId = `sample-file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+        if (isImage) {
+          // Generate ultra-light 300px thumbnail safely without memory explosion
+          const thumbDataUrl = await createSmallImageThumbnail(file);
+          const blobUrl = URL.createObjectURL(file);
+
+          newSampleItems.push({
+            id: itemId,
+            name: file.name,
+            type: 'image',
+            dataUrl: thumbDataUrl || blobUrl,
+            size: file.size
+          });
+
+          addedSummaryText += `\n[등록 샘플 페이지 이미지: ${file.name}]`;
+        } else if (isPdf) {
+          const blobUrl = URL.createObjectURL(file);
+          newSampleItems.push({
+            id: itemId,
+            name: file.name,
+            type: 'pdf',
+            dataUrl: blobUrl,
+            size: file.size
+          });
+
+          addedSummaryText += `\n[등록 샘플 페이지 PDF 문서: ${file.name}]`;
+        } else if (isText) {
+          // Read plain text file safely up to 10,000 chars
+          const textContent = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (evt) => resolve((evt.target?.result as string) || '');
+            reader.onerror = () => resolve('');
+            reader.readAsText(file);
+          });
+
+          newSampleItems.push({
+            id: itemId,
+            name: file.name,
+            type: 'text',
+            textContent: textContent.substring(0, 5000),
+            size: file.size
+          });
+
+          if (textContent) {
+            addedSummaryText += `\n[등록 샘플 문서: ${file.name}]\n${textContent.substring(0, 1000)}`;
+          }
+        } else {
+          // Binary doc formats like .hwp, .doc, .docx
+          const blobUrl = URL.createObjectURL(file);
+          newSampleItems.push({
+            id: itemId,
+            name: file.name,
+            type: 'doc',
+            dataUrl: blobUrl,
+            size: file.size
+          });
+
+          addedSummaryText += `\n[등록 샘플 양식 문서: ${file.name} (${fileExt.toUpperCase()} 서식)]`;
+        }
       }
-    };
-    reader.readAsText(file);
+
+      setSampleFormState(prev => {
+        const updatedFiles = [...(prev.sampleFiles || []), ...newSampleItems];
+        let newContent = prev.sampleContent 
+          ? (prev.sampleContent.trim() + "\n" + addedSummaryText) 
+          : (newSampleItems[0]?.name ? `[등록 샘플 문서 서식]\n${addedSummaryText}` : prev.sampleContent);
+
+        if (newContent.length > 20000) {
+          newContent = newContent.substring(0, 20000) + "\n... (샘플 텍스트 초과분 생략)";
+        }
+
+        return {
+          ...prev,
+          sampleName: prev.sampleName || (newSampleItems[0] ? `${newSampleItems[0].name.replace(/\.[^/.]+$/, "")} (사용자 업로드 샘플)` : "사용자 업로드 샘플"),
+          sampleContent: newContent,
+          sampleFiles: updatedFiles
+        };
+      });
+
+      alert(`✅ [${newSampleItems.length}개] 샘플 파일/페이지가 성공적으로 추가되었습니다! (현재 총 ${currentFiles.length + newSampleItems.length}장 / 최대 30장)`);
+    } catch (err) {
+      console.error("샘플 파일 처리 중 오류:", err);
+      alert("❌ 파일 로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsProcessingSampleFiles(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveSampleFile = (fileId: string) => {
+    setSampleFormState(prev => ({
+      ...prev,
+      sampleFiles: (prev.sampleFiles || []).filter(f => f.id !== fileId)
+    }));
+  };
+
+  const handleClearAllSampleFiles = () => {
+    if (confirm("등록된 모든 샘플 파일/페이지를 삭제하시겠습니까?")) {
+      setSampleFormState(prev => ({
+        ...prev,
+        sampleFiles: []
+      }));
+    }
   };
 
   // Default Upload Category state for upcoming uploads
@@ -1462,24 +1627,119 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
                 </div>
               </div>
 
-              {/* 2. Custom Sample Upload / Text Input */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                    <FileText className="w-4 h-4 text-orange-600" />
-                    <span>2. 우리회사 고유 샘플 보고서 직접 업로드 / 입력</span>
+              {/* 2. Custom Sample Upload / Text Input (Supports PDF, JPG, PNG, HWP, DOC, TXT up to 30 pages/files) */}
+              <div className="bg-slate-50 p-4.5 rounded-xl border border-slate-200 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                  <div className="flex items-center gap-2 font-bold text-slate-900">
+                    <FileText className="w-5 h-5 text-orange-600" />
+                    <span className="text-sm">2. 고유 샘플 파일 / 페이지 등록 (최대 30장)</span>
+                    <span className="bg-orange-100 text-orange-950 text-xs font-black px-2 py-0.5 rounded-full border border-orange-300">
+                      등록됨: {(sampleFormState.sampleFiles || []).length} / 30장
+                    </span>
                   </div>
-                  <label className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white border border-orange-400 px-3.5 py-1.5 rounded-xl cursor-pointer font-extrabold transition-colors shadow-sm">
-                    <Upload className="w-3.5 h-3.5 text-white" />
-                    <span>샘플 파일(.txt, .md, .doc, .hwp) 파일 불러오기</span>
-                    <input
-                      type="file"
-                      accept=".txt,.md,.doc,.docx,.hwp"
-                      onChange={handleSampleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
+
+                  <div className="flex items-center gap-2">
+                    {(sampleFormState.sampleFiles || []).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearAllSampleFiles}
+                        className="text-xs font-bold text-red-600 hover:text-red-800 bg-white hover:bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        전체 삭제
+                      </button>
+                    )}
+                    <label className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white border border-orange-400 px-3.5 py-1.5 rounded-xl cursor-pointer font-extrabold transition-all shadow-md active:scale-95">
+                      {isProcessingSampleFiles ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      ) : (
+                        <Upload className="w-4 h-4 text-white" />
+                      )}
+                      <span>샘플 파일/이미지 업로드 (PDF, JPG, PNG, HWP, DOC, TXT)</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.bmp,.hwp,.doc,.docx,.txt,.md"
+                        onChange={handleSampleMultiFileUpload}
+                        disabled={isProcessingSampleFiles}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 </div>
+
+                {/* Info Callout Banner */}
+                <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-900 flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <strong>PDF, 이미지(JPG/PNG), HWP, DOC, TXT 등 최대 30장까지 한 번에 업로드 가능합니다!</strong>
+                    <p className="mt-0.5 text-amber-800">
+                      이미지/PDF 샘플은 AI가 레이아웃과 서식 배치를 시각적으로 직접 복제하며, HWP/DOC 바이너리 파일도 UI 지연이나 깨짐 현상 없이 안전하게 처리됩니다.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Uploaded Files Gallery Grid (up to 30 items) */}
+                {(sampleFormState.sampleFiles || []).length > 0 && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-extrabold text-slate-800">
+                      📂 등록된 샘플 파일 / 페이지 목록 ({(sampleFormState.sampleFiles || []).length} / 30장)
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-56 overflow-y-auto p-2 bg-white rounded-xl border border-slate-200 shadow-inner">
+                      {(sampleFormState.sampleFiles || []).map((sf, index) => (
+                        <div
+                          key={sf.id || index}
+                          className="relative group bg-slate-50 border border-slate-200 hover:border-orange-400 rounded-lg p-2 transition-all shadow-sm flex flex-col justify-between"
+                        >
+                          {/* File Preview Thumbnail or Icon */}
+                          <div className="h-20 w-full bg-slate-100 rounded border border-slate-200 flex items-center justify-center overflow-hidden mb-1.5 relative">
+                            {sf.type === 'image' && sf.dataUrl ? (
+                              <img src={sf.dataUrl} alt={sf.name} className="h-full w-full object-cover" />
+                            ) : sf.type === 'pdf' ? (
+                              <div className="flex flex-col items-center gap-1 text-red-600">
+                                <FileText className="w-8 h-8" />
+                                <span className="text-[9px] font-black uppercase bg-red-100 text-red-700 px-1.5 py-0.2 rounded">PDF</span>
+                              </div>
+                            ) : sf.type === 'doc' ? (
+                              <div className="flex flex-col items-center gap-1 text-blue-600">
+                                <FileCode2 className="w-8 h-8 text-blue-600" />
+                                <span className="text-[9px] font-black uppercase bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">HWP/DOC</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1 text-slate-600">
+                                <FileText className="w-8 h-8" />
+                                <span className="text-[9px] font-black uppercase bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded">TXT</span>
+                              </div>
+                            )}
+
+                            {/* Page Index Badge */}
+                            <span className="absolute top-1 left-1 bg-slate-900/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                              #{index + 1}
+                            </span>
+
+                            {/* Delete Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSampleFile(sf.id)}
+                              className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white p-1 rounded-full shadow-md transition-transform active:scale-95 cursor-pointer"
+                              title="삭제"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold text-slate-800 truncate" title={sf.name}>
+                              {sf.name}
+                            </p>
+                            <p className="text-[9px] text-slate-500">
+                              {sf.size ? `${(sf.size / 1024).toFixed(1)} KB` : sf.type.toUpperCase()}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">등록 샘플 서식 명칭</label>
@@ -1494,17 +1754,17 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
 
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">
-                    샘플 보고서 목차 및 문단 본문 텍스트 (100% 구조 복제 기준)
+                    샘플 보고서 목차 및 문단 본문 텍스트 요약 (100% 구조 복제 기준)
                   </label>
                   <textarea
-                    rows={8}
+                    rows={6}
                     value={sampleFormState.sampleContent || ""}
                     onChange={(e) => setSampleFormState(p => ({ ...p, sampleContent: e.target.value }))}
-                    placeholder="샘플 보고서의 대목차, 중목차, 표 항목 및 서술 방식 텍스트를 복사하여 여기에 붙여넣으세요..."
+                    placeholder="샘플 보고서의 대목차, 중목차, 표 항목 및 서술 방식 텍스트를 붙여넣거나 수동 수정할 수 있습니다..."
                     className="w-full bg-white border border-slate-300 rounded-lg p-3 font-mono text-xs text-slate-800 leading-relaxed focus:ring-1 focus:ring-orange-500"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">
-                    💡 **팁:** 기작성된 hwp, word, pdf 보고서의 목차와 서식을 복사해 붙여넣으면, AI가 이 목차 번호 매기기와 단락 구성을 동일하게 적용합니다.
+                    💡 **팁:** 기작성된 hwp, word, pdf, 이미지 보고서의 목차와 서식이 자동으로 종합되며, 직접 편집도 가능합니다.
                   </p>
                 </div>
               </div>

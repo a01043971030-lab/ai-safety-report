@@ -159,14 +159,25 @@ app.post("/api/generate-report-text", async (req, res) => {
 
     // Compile sample config if provided
     const sampleConfig = reportData.sampleConfig || {};
-    const sampleText = sampleConfig.sampleContent 
+    let sampleFilesDetail = "";
+    if (sampleConfig.sampleFiles && Array.isArray(sampleConfig.sampleFiles) && sampleConfig.sampleFiles.length > 0) {
+      sampleFilesDetail = `\n[사용자 등록 샘플 파일 및 페이지 첨부 목록 (총 ${sampleConfig.sampleFiles.length}장/개, 최대 30장 지원)]:\n` +
+        sampleConfig.sampleFiles.map((sf: any, idx: number) => {
+          const fileTypeLabel = (sf.type || "doc").toUpperCase();
+          const textPreview = sf.textContent ? ` (텍스트 요약: ${sf.textContent.substring(0, 300)}...)` : "";
+          return `${idx + 1}. [${fileTypeLabel}] ${sf.name}${textPreview}`;
+        }).join("\n") + "\n";
+    }
+
+    const sampleText = (sampleConfig.sampleContent 
       ? `\n[사용자 등록 기준 샘플 보고서 (목차/문단/표 복제 기준)]:\n${sampleConfig.sampleContent}\n` 
-      : "";
+      : "") + sampleFilesDetail;
     const fontTonePrompt = `
 - 사용자 등록 샘플 양식명: ${sampleConfig.sampleName || "국토부 정기안전점검 표준샘플"}
 - 적용 지정 글꼴 스타일: ${sampleConfig.fontStyle || "맑은 고딕 (표준)"}
 - 적용 서술 어투 톤앤매너: ${sampleConfig.toneStyle || "격식체 (~함, ~사료됨)"}
 - 적용 표/단락 디자인: ${sampleConfig.tableStyle || "표준 격자형"}
+- 첨부 등록된 샘플 페이지/파일 수: ${sampleConfig.sampleFiles?.length || 0}장 (최대 30장 지원)
 `;
 
     const prompt = `당신은 건설현장 '정기안전점검 보고서'를 작성하는 고도화된 맞춤형 전문 AI입니다.

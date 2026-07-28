@@ -56,9 +56,19 @@ export interface ChecklistItem {
   action: string;
 }
 
+export interface SampleFileItem {
+  id: string;
+  name: string;
+  type: "text" | "pdf" | "image" | "doc";
+  dataUrl?: string; // Image or PDF base64 data URL for preview
+  textContent?: string;
+  size?: number;
+}
+
 export interface SampleTemplateConfig {
   sampleName?: string;
   sampleContent?: string;
+  sampleFiles?: SampleFileItem[]; // Up to 30 sample files/pages
   fontStyle?: "맑은 고딕" | "휴먼명조" | "나눔고딕" | "바탕체" | string;
   toneStyle?: "격식체 (~함, ~사료됨)" | "서술체 (~하였습니다)" | "간결체 (~함)";
   tableStyle?: "표준 격자형" | "클린 테두리형" | "헤더 강조형";
@@ -176,5 +186,17 @@ export interface NoticeItem {
   date: string;
   content: string;
   createdAt: number;
+}
+
+export interface LoginLogItem {
+  id: string;
+  username: string;
+  companyName: string;
+  representative: string;
+  loginAt: string; // YYYY-MM-DD HH:mm:ss
+  timestamp: number;
+  status: "성공" | "비밀번호 오류" | "계정 잠김" | "실패";
+  ipAddress?: string;
+  device?: string;
 }
 

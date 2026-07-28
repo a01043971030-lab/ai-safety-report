@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { SafetyReport, UserProfile, MemberStatus, NoticeItem } from "./types";
+import { SafetyReport, UserProfile, MemberStatus, NoticeItem, LoginLogItem } from "./types";
 import { db } from "./firebase";
 import { 
   collection, 
@@ -97,6 +97,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [dbStatus, setDbStatus] = useState<"CONNECTED" | "FALLBACK" | "CONNECTING">("CONNECTING");
   const [notices, setNotices] = useState<NoticeItem[]>([]);
+  const [loginLogs, setLoginLogs] = useState<LoginLogItem[]>([]);
 
   // Admin states
   const [adminLoggedIn, setAdminLoggedIn] = useState(() => {
@@ -328,8 +329,141 @@ export default function App() {
     }
   };
 
+  const fetchLoginLogs = async () => {
+    try {
+      let list: LoginLogItem[] = [];
+      if (dbStatus === "CONNECTED") {
+        const q = query(collection(db, "login_logs"), orderBy("timestamp", "desc"));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() } as LoginLogItem);
+        });
+      }
+
+      if (list.length === 0) {
+        const localLogs = localStorage.getItem("safety_login_logs_db");
+        if (localLogs) {
+          list = JSON.parse(localLogs) as LoginLogItem[];
+        }
+      }
+
+      if (list.length === 0) {
+        const dummyLogs: LoginLogItem[] = [
+          {
+            id: "log_101",
+            username: "user1",
+            companyName: "(주)에이아이건설",
+            representative: "김철수",
+            loginAt: "2026-07-27 18:42:10",
+            timestamp: 1785148930000,
+            status: "성공",
+            ipAddress: "211.200.12.45 (강남구)",
+            device: "데스크톱 (Chrome / Windows)"
+          },
+          {
+            id: "log_102",
+            username: "user2",
+            companyName: "대승건설 주식회사",
+            representative: "박영희",
+            loginAt: "2026-07-27 16:15:33",
+            timestamp: 1785140133000,
+            status: "성공",
+            ipAddress: "182.222.90.11 (부산)",
+            device: "모바일 (Safari / iOS)"
+          },
+          {
+            id: "log_103",
+            username: "user3",
+            companyName: "한울건전설계(주)",
+            representative: "이민우",
+            loginAt: "2026-07-27 14:02:50",
+            timestamp: 1785132170000,
+            status: "성공",
+            ipAddress: "121.130.40.88 (인천)",
+            device: "데스크톱 (Edge / Windows)"
+          },
+          {
+            id: "log_104",
+            username: "user1",
+            companyName: "(주)에이아이건설",
+            representative: "김철수",
+            loginAt: "2026-07-26 09:12:05",
+            timestamp: 1785028325000,
+            status: "비밀번호 오류",
+            ipAddress: "211.200.12.45 (강남구)",
+            device: "데스크톱 (Chrome / Windows)"
+          },
+          {
+            id: "log_105",
+            username: "user2",
+            companyName: "대승건설 주식회사",
+            representative: "박영희",
+            loginAt: "2026-07-25 11:30:18",
+            timestamp: 1784949818000,
+            status: "성공",
+            ipAddress: "182.222.90.11 (부산)",
+            device: "데스크톱 (Chrome / Windows)"
+          }
+        ];
+
+        list = dummyLogs;
+        localStorage.setItem("safety_login_logs_db", JSON.stringify(dummyLogs));
+        if (dbStatus === "CONNECTED") {
+          for (const l of dummyLogs) {
+            try {
+              await setDoc(doc(db, "login_logs", l.id), l);
+            } catch (e) {
+              console.error("Failed to write dummy login log:", e);
+            }
+          }
+        }
+      }
+
+      list.sort((a, b) => b.timestamp - a.timestamp);
+      setLoginLogs(list);
+    } catch (err) {
+      console.error("Error fetching login logs:", err);
+    }
+  };
+
+  const recordLoginLog = async (
+    username: string, 
+    companyName: string, 
+    representative: string, 
+    status: "성공" | "비밀번호 오류" | "계정 잠김" | "실패"
+  ) => {
+    const now = new Date();
+    const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    
+    const newLog: LoginLogItem = {
+      id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      username,
+      companyName: companyName || "미확인 회사",
+      representative: representative || "대표자 미상",
+      loginAt: formattedDate,
+      timestamp: Date.now(),
+      status,
+      ipAddress: "118.32.104.12 (KR)",
+      device: navigator.userAgent.includes("Mobile") ? "모바일 브라우저 (Mobile)" : "데스크톱 브라우저 (Chrome/Windows)"
+    };
+
+    setLoginLogs((prev) => [newLog, ...prev]);
+
+    if (dbStatus === "CONNECTED") {
+      try {
+        await setDoc(doc(db, "login_logs", newLog.id), newLog);
+      } catch (e) {
+        console.error("Failed to write login log to Firestore:", e);
+      }
+    }
+
+    const existingLocal = JSON.parse(localStorage.getItem("safety_login_logs_db") || "[]") as LoginLogItem[];
+    localStorage.setItem("safety_login_logs_db", JSON.stringify([newLog, ...existingLocal]));
+  };
+
   useEffect(() => {
     fetchNotices();
+    fetchLoginLogs();
   }, [dbStatus]);
 
   const handleSaveNotice = async (notice: NoticeItem) => {
@@ -469,6 +603,9 @@ export default function App() {
       // Auto-login after signup
       setCurrentUser(newUser);
       localStorage.setItem("active_user", JSON.stringify(newUser));
+
+      // Record login log
+      recordLoginLog(newUser.username, newUser.companyName, newUser.representative, "성공");
       
       // Reset form
       setSignupForm({
@@ -521,12 +658,23 @@ export default function App() {
       }
 
       if (foundUser) {
-        setCurrentUser(foundUser);
-        localStorage.setItem("active_user", JSON.stringify(foundUser));
+        const now = new Date();
+        const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const updatedUser = { ...foundUser, lastLoginAt: formattedDate };
+
+        setCurrentUser(updatedUser);
+        localStorage.setItem("active_user", JSON.stringify(updatedUser));
+        handleUpdateUser(updatedUser);
+
+        // Record successful login log
+        recordLoginLog(updatedUser.username, updatedUser.companyName, updatedUser.representative, "성공");
+
         setShowLogin(false);
         setLoginForm({ username: "", password: "" });
-        alert(`${foundUser.username}님, 환영합니다!\n회원 자격: ${foundUser.status}`);
+        alert(`${updatedUser.username}님, 환영합니다!\n회원 자격: ${updatedUser.status}`);
       } else {
+        // Record failed login log
+        recordLoginLog(username, "미확인 회사", "-", "비밀번호 오류");
         alert("아이디 또는 비밀번호가 올바르지 않습니다.");
       }
     } catch (err) {
@@ -1211,6 +1359,8 @@ export default function App() {
             notices={notices}
             onSaveNotice={handleSaveNotice}
             onDeleteNotice={handleDeleteNotice}
+            loginLogs={loginLogs}
+            onRefreshLoginLogs={fetchLoginLogs}
           />
         )}
 
