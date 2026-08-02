@@ -74,6 +74,16 @@ export interface SampleTemplateConfig {
   tableStyle?: "표준 격자형" | "클린 테두리형" | "헤더 강조형";
 }
 
+export interface CustomReportSection {
+  chapterNumber?: string;
+  title: string;
+  subsections?: Array<{
+    subtitle: string;
+    content: string;
+  }>;
+  content?: string;
+}
+
 export interface SafetyReport {
   id?: string;
   creatorUsername?: string;
@@ -83,6 +93,8 @@ export interface SafetyReport {
 
   // Sample Custom Template Config
   sampleConfig?: SampleTemplateConfig;
+  customSections?: CustomReportSection[];
+  tocEntries?: Array<{ title: string; pageLabel?: string }>;
 
   // Basic Info - Company
   companyName: string;

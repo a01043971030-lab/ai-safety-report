@@ -75,6 +75,23 @@
         "createdAt": { "type": "integer" }
       },
       "required": ["id", "tag", "title", "date", "content", "createdAt"]
+    },
+    "LoginLogItem": {
+      "title": "LoginLogItem",
+      "description": "Log entry recording login attempts and access history for member accounts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "companyName": { "type": "string" },
+        "representative": { "type": "string" },
+        "loginAt": { "type": "string" },
+        "timestamp": { "type": "integer" },
+        "status": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "device": { "type": "string" }
+      },
+      "required": ["id", "username", "companyName", "representative", "loginAt", "timestamp", "status"]
     }
   },
   "firestore": {
@@ -89,6 +106,10 @@
     "/notices/{noticeId}": {
       "schema": "NoticeItem",
       "description": "Collection storing announcement and notice details."
+    },
+    "/login_logs/{logId}": {
+      "schema": "LoginLogItem",
+      "description": "Collection storing member login access logs."
     }
   }
 }

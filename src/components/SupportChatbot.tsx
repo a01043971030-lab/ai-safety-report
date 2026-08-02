@@ -99,7 +99,8 @@ export default function SupportChatbot({ currentUser }: SupportChatbotProps) {
       });
 
       if (!response.ok) {
-        throw new Error("서버와의 통신에 실패했습니다.");
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `서버와의 통신에 실패했습니다 (${response.status})`);
       }
 
       const data = await response.json();

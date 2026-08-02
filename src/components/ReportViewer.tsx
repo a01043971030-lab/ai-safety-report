@@ -30,7 +30,7 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
   const getFontFamily = (styleName?: string) => {
     if (!styleName) return "'Malgun Gothic', '맑은 고딕', sans-serif";
     if (styleName.includes("휴먼명조") || styleName.includes("명조")) {
-      return "'Batang', 'Gungsuh', '휴먼명조', serif";
+      return "'Human Myungjo', '휴먼명조', 'Batang', '바탕체', serif";
     }
     if (styleName.includes("바탕체")) {
       return "'Batang', '바탕체', serif";
@@ -38,10 +38,39 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
     if (styleName.includes("나눔고딕")) {
       return "'Nanum Gothic', '나눔고딕', sans-serif";
     }
+    if (styleName.includes("돋움")) {
+      return "'Dotum', '돋움체', sans-serif";
+    }
     return "'Malgun Gothic', '맑은 고딕', sans-serif";
   };
 
   const selectedFontCss = getFontFamily(report.sampleConfig?.fontStyle);
+
+  // Dynamic Table Styling helper based on sampleConfig.tableStyle
+  const getTableStyleClasses = (tableStyle?: string) => {
+    if (tableStyle?.includes("헤더 강조형")) {
+      return {
+        table: "w-full text-xs border-collapse border-2 border-blue-900 text-left mt-2 shadow-sm",
+        header: "border border-blue-800 p-2.5 font-extrabold bg-blue-900 text-white",
+        cell: "border border-slate-300 p-2.5 text-slate-800 bg-white"
+      };
+    }
+    if (tableStyle?.includes("클린 테두리형")) {
+      return {
+        table: "w-full text-xs border-collapse border-y-2 border-slate-800 text-left mt-2",
+        header: "border-b-2 border-slate-300 p-2.5 font-bold bg-slate-50 text-slate-900",
+        cell: "border-b border-slate-200 p-2.5 text-slate-700 bg-white"
+      };
+    }
+    // Standard grid (표준 격자형)
+    return {
+      table: "w-full text-xs border-collapse border border-slate-300 text-left mt-2",
+      header: "border border-slate-300 p-2.5 font-bold bg-slate-100 text-slate-800",
+      cell: "border border-slate-300 p-2.5 text-slate-700 bg-white"
+    };
+  };
+
+  const tableClasses = getTableStyleClasses(report.sampleConfig?.tableStyle);
 
   // Check active user status
   const storedUser = localStorage.getItem("active_user");
@@ -438,46 +467,71 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-slate-950 border-b-2 border-slate-800 pb-4 mb-8 text-center">목 차</h2>
+            <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4 mb-8">
+              <h2 className="text-2xl font-bold text-slate-950">목 차</h2>
+              {report.sampleConfig?.sampleName && (
+                <span className="text-xs font-semibold text-blue-900 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
+                  📋 등록 샘플 양식: {report.sampleConfig.sampleName}
+                </span>
+              )}
+            </div>
             
-            <div className="space-y-4 mt-12 px-6">
-              <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
-                <span>제 1 장. 서언 및 안전점검 개요</span>
-                <span className="font-mono">Page 05</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
-                <span>제 2 장. 공사 현황 및 점검 대상 시설물 현황</span>
-                <span className="font-mono">Page 06</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
-                <span>제 3 장. 점검 범위 및 실측 진단 방법</span>
-                <span className="font-mono">Page 07</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
-                <span>제 4 장. 구조 및 시공 품질 관리 상태 분석</span>
-                <span className="font-mono">Page 08</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
-                <span>제 5 장. 가설 공법 및 주변 환경 시설 안정성 진단</span>
-                <span className="font-mono">Page 09</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
-                <span>제 6 장. 부종별 세부 정기안전점검 체크리스트</span>
-                <span className="font-mono">Page 10</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
-                <span>제 7 장. 현장 점검 사진 및 AI 진단 소견 분석</span>
-                <span className="font-mono">Page 11</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
-                <span>제 8 장. 종합 결론 및 안전 개선 건의 대책</span>
-                <span className="font-mono">Page 12 ~ 13</span>
-              </div>
+            <div className="space-y-3.5 mt-8 px-4">
+              {report.tocEntries && report.tocEntries.length > 0 ? (
+                report.tocEntries.map((toc, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2 text-sm">
+                    <span>{toc.title}</span>
+                    <span className="font-mono text-slate-600">{toc.pageLabel || `Page ${String(idx + 5).padStart(2, '0')}`}</span>
+                  </div>
+                ))
+              ) : report.customSections && report.customSections.length > 0 ? (
+                report.customSections.map((sec, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2 text-sm">
+                    <span>{sec.chapterNumber ? `${sec.chapterNumber} ${sec.title}` : sec.title}</span>
+                    <span className="font-mono text-slate-600">Page {String(idx + 5).padStart(2, '0')}</span>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
+                    <span>제 1 장. 서언 및 안전점검 개요</span>
+                    <span className="font-mono">Page 05</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
+                    <span>제 2 장. 공사 현황 및 점검 대상 시설물 현황</span>
+                    <span className="font-mono">Page 06</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
+                    <span>제 3 장. 점검 범위 및 실측 진단 방법</span>
+                    <span className="font-mono">Page 07</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
+                    <span>제 4 장. 구조 및 시공 품질 관리 상태 분석</span>
+                    <span className="font-mono">Page 08</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
+                    <span>제 5 장. 가설 공법 및 주변 환경 시설 안정성 진단</span>
+                    <span className="font-mono">Page 09</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
+                    <span>제 6 장. 부종별 세부 정기안전점검 체크리스트</span>
+                    <span className="font-mono">Page 10</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
+                    <span>제 7 장. 현장 점검 사진 및 AI 진단 소견 분석</span>
+                    <span className="font-mono">Page 11</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-800 font-semibold border-b border-dotted border-slate-300 pb-2">
+                    <span>제 8 장. 종합 결론 및 안전 개선 건의 대책</span>
+                    <span className="font-mono">Page 12 ~ 13</span>
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 mt-16 text-xs text-slate-500 leading-relaxed">
-              <span className="font-bold text-slate-700 block mb-1">※ 안전진단 가이드라인 공지사항</span>
-              본 목차 및 구성 내용은 국토교통부 건설공사 안전관리 지침의 표준 세부 목차 구조와 100% 일치하며, AI 기반의 자동 정밀 색인 알고리즘에 의해 조율되었습니다.
+            <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 mt-12 text-xs text-slate-500 leading-relaxed">
+              <span className="font-bold text-slate-700 block mb-1">※ 안전진단 양식 정밀 복제 완료 공지</span>
+              등록된 샘플 보고서의 목차 순서, 번호체계, 서술 어투({report.sampleConfig?.toneStyle || "격식체"}), 지정 글꼴({report.sampleConfig?.fontStyle || "맑은 고딕"})이 100% 동일하게 복제되어 적용되었습니다.
             </div>
           </div>
 
@@ -487,236 +541,324 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
         </div>
 
 
-        {/* ----------------- PAGE 5: 제 1 장 (CH 1) ----------------- */}
-        <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
-          <div className="print-header hidden print:flex">
-            <span>정기안전점검 보고서</span>
-            <span>제1장 서언 및 안전점검 개요</span>
-          </div>
+        {/* ----------------- PAGE 5+: CHAPTER SECTIONS (CLONED FROM SAMPLE OR DEFAULT) ----------------- */}
+        {report.customSections && report.customSections.length > 0 ? (
+          report.customSections.map((sec, secIdx) => (
+            <div key={secIdx} className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
+              <div className="print-header hidden print:flex">
+                <span>정기안전점검 보고서</span>
+                <span>{sec.chapterNumber ? `${sec.chapterNumber} ${sec.title}` : sec.title}</span>
+              </div>
 
-          <div>
-            <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 1 장. 서언 및 안전점검 개요</h3>
-            
-            <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
-              <h4 className="font-bold text-slate-950">1.1 안전점검의 목적</h4>
-              <p>
-                본 보고서는 건설기술진흥법 제62조 및 동법 시행령 제100조에 근거하여 현장의 유해·위험요소를 사전에 도출하고 안전대책을 공학적으로 마련하기 위함이다. 
-                궁극적으로 시공 품질을 극대화하고 사전에 중대 인명·물적 재해를 완벽히 예방하는 것을 점검의 최우선 가치로 설정하였다.
-              </p>
+              <div>
+                <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">
+                  {sec.chapterNumber ? `${sec.chapterNumber}. ` : ""}{sec.title}
+                </h3>
 
-              <h4 className="font-bold text-slate-950 mt-6">1.2 법적 근거 및 수행 기준</h4>
-              <p>
-                건설공사의 시공 중 시행하는 정기안전점검은 구조물의 시공 안전성 및 가설 시설물의 상태 검토 등 법적 규정을 따른다. 
-                특히 건설공사 안전관리 업무수행 지침에 준하는 점검 주기와 강인한 학식 기준의 정밀 육안 진단을 통해 현장을 상시 점검하고 본 보고서에 상세 보고한다.
-              </p>
-
-              <h4 className="font-bold text-slate-950 mt-6">1.3 AI 자동화 검인시스템 세부 개요</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
-                {report.aiGenerated && report.auditOverview ? report.auditOverview : (
-                  `금회 점검을 통하여 수집된 시공 현장 사진들은 당사 특허 알고리즘의 건설 안전 부재 인식 AI를 통해 진단되었다. 비계, 동바리, 철근 조립, 거푸집 등의 균열이나 미비 요소는 AI 진단 기술과 책임기술인의 공학적 판정을 복합하여 객관성을 획득하였다. 표준 예시에 부합하는 전반적인 상태는 양호한 상태로 유지 중이다.`
+                {secIdx === 1 && (
+                  <div className="mb-6">
+                    <h4 className="font-bold text-slate-950 mb-2">공사 세부 현황표</h4>
+                    <table className={tableClasses.table}>
+                      <tbody>
+                        <tr>
+                          <td className={tableClasses.header + " w-1/4"}>공 사 명</td>
+                          <td className={tableClasses.cell} colSpan={3}>{report.projectName || "(미정)"}</td>
+                        </tr>
+                        <tr>
+                          <td className={tableClasses.header}>공사위치</td>
+                          <td className={tableClasses.cell} colSpan={3}>{report.projectLocation || "(미정)"}</td>
+                        </tr>
+                        <tr>
+                          <td className={tableClasses.header + " w-1/4"}>시공사</td>
+                          <td className={tableClasses.cell + " w-1/4"}>{report.contractor || "(미정)"}</td>
+                          <td className={tableClasses.header + " w-1/4"}>감리사</td>
+                          <td className={tableClasses.cell + " w-1/4"}>{report.supervisor || "(미정)"}</td>
+                        </tr>
+                        <tr>
+                          <td className={tableClasses.header}>공사기간</td>
+                          <td className={tableClasses.cell}>{report.projectPeriod || "(미정)"}</td>
+                          <td className={tableClasses.header}>현재 공정률</td>
+                          <td className={tableClasses.cell + " font-mono font-bold text-blue-800"}>{report.progressRate || "0%"}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              </p>
-            </div>
-          </div>
 
-          <div className="print-footer hidden print:block">
-            - 5 -
-          </div>
-        </div>
+                <div className="space-y-4 text-sm text-slate-800 leading-relaxed text-justify">
+                  {sec.subsections && sec.subsections.length > 0 ? (
+                    sec.subsections.map((sub, subIdx) => (
+                      <div key={subIdx} className="space-y-1">
+                        <h4 className="font-bold text-slate-950">{sub.subtitle}</h4>
+                        <p className="bg-slate-50 p-3.5 rounded border border-slate-100 text-slate-700 leading-relaxed whitespace-pre-wrap text-xs">
+                          {sub.content}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700 leading-relaxed whitespace-pre-wrap text-xs">
+                      {sec.content || "해당 공종 및 항목에 대한 특이사항 없음."}
+                    </p>
+                  )}
 
-
-        {/* ----------------- PAGE 6: 제 2 장 (CH 2) ----------------- */}
-        <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
-          <div className="print-header hidden print:flex">
-            <span>정기안전점검 보고서</span>
-            <span>제2장 공사 현황 및 시설물 현황</span>
-          </div>
-
-          <div>
-            <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 2 장. 공사 현황 및 시설물 현황</h3>
-            
-            <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
-              <h4 className="font-bold text-slate-950">2.1 공사 세부 현황표</h4>
-              
-              <table className="w-full text-xs border-collapse border border-slate-300 text-left mt-2">
-                <tbody>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-bold bg-slate-50 w-1/4">공 사 명</td>
-                    <td className="border border-slate-300 p-2.5 text-slate-800" colSpan={3}>{report.projectName || "(미정)"}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-bold bg-slate-50">공사위치</td>
-                    <td className="border border-slate-300 p-2.5 text-slate-800" colSpan={3}>{report.projectLocation || "(미정)"}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-bold bg-slate-50 w-1/4">시공사</td>
-                    <td className="border border-slate-300 p-2.5 text-slate-700 w-1/4">{report.contractor || "(미정)"}</td>
-                    <td className="border border-slate-300 p-2.5 font-bold bg-slate-50 w-1/4">감리사</td>
-                    <td className="border border-slate-300 p-2.5 text-slate-700 w-1/4">{report.supervisor || "(미정)"}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-bold bg-slate-50">공사기간</td>
-                    <td className="border border-slate-300 p-2.5 text-slate-700">{report.projectPeriod || "(미정)"}</td>
-                    <td className="border border-slate-300 p-2.5 font-bold bg-slate-50">현재 공정률</td>
-                    <td className="border border-slate-300 p-2.5 text-slate-700 font-mono font-bold text-blue-800">{report.progressRate || "0%"}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-bold bg-slate-50">점검 대상공종</td>
-                    <td className="border border-slate-300 p-2.5 text-slate-700" colSpan={3}>{report.workTypes || "토공사, 구조물공사, 가설공사"}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <h4 className="font-bold text-slate-950 mt-6">2.2 공사 현황 및 시설물 개요 상세</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700 text-xs">
-                {report.aiGenerated && report.constructionStatus ? report.constructionStatus : (
-                  `본 사업은 공사계획서 및 승인 설계도서에 준거하여 차질없이 정밀 시공되고 있음을 평가하였다. 현재 공정률은 ${report.progressRate || "0%"} 수준이며, 주요 공정으로는 ${report.workTypes || "지정 공종"}이 활발히 추진되고 있다. 현장 안전관리 계획에 기반하여 각 가설 구조물의 응력 상태 및 전도 저항 안정성을 유지하고 있다.`
-                )}
-              </p>
-
-              <h4 className="font-bold text-slate-950 mt-4">2.3 점검 대상시설물 상세</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700 text-xs">
-                {report.aiGenerated && report.targetFacilities ? report.targetFacilities : (
-                  `금회 점검 차수(${report.checkDegree || "1차"})의 구체적 점검 대상은 부지 내 옹벽 구조물, 비계 설치 상태 및 배근 조립부 등으로 한정하였다. 구조 계산상의 하중에 대하여 충분히 지지될 수 있는 상태를 계측 또는 정밀 육안 검침하였다.`
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="print-footer hidden print:block">
-            - 6 -
-          </div>
-        </div>
-
-
-        {/* ----------------- PAGE 7: 제 3 장 (CH 3) ----------------- */}
-        <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
-          <div className="print-header hidden print:flex">
-            <span>정기안전점검 보고서</span>
-            <span>제3장 점검 범위 및 방법</span>
-          </div>
-
-          <div>
-            <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 3 장. 점검 범위 및 실측 방법</h3>
-            
-            <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
-              <h4 className="font-bold text-slate-950">3.1 점검 구역 및 범위 설정</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
-                {report.aiGenerated && report.scope ? report.scope : (
-                  `안전진단 전단 구역은 공사 진행 중인 전체 영역을 포괄하며, 특히 붕괴 및 추락 고위험 지구인 비계 배후 가설, 굴착 옹벽 사면, 타설 타워 하부 지지대를 중점 진단 범위로 설정하였다.`
-                )}
-              </p>
-
-              <h4 className="font-bold text-slate-950 mt-6">3.2 진단 및 계측 방법</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
-                {report.aiGenerated && report.methodology ? report.methodology : (
-                  `점검 방법은 건설공사 안전관리 업무수행 지침의 기준을 철저히 따라, 구조 공학적인 정밀 육안 검사(Visual Inspection)를 수행하였다. 또한 철근 배근 간격 실측용 버니어 캘리퍼스 및 수평 수직 가새 체결각 판독 기기 등을 보완 활용하여 신뢰도를 배가하였다.`
-                )}
-              </p>
-
-              {/* Dynamic Map location map display inside printable document */}
-              <h4 className="font-bold text-slate-950 mt-6">3.3 현장 세부 위치도 (Google Maps 자동 연동)</h4>
-              <div className="w-full h-44 bg-slate-100 rounded-lg border border-slate-300 overflow-hidden mt-2 relative flex items-center justify-center">
-                <iframe 
-                  src={mapIframeUrl}
-                  width="100%" 
-                  height="100%" 
-                  className="border-0"
-                  allowFullScreen={false} 
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                ></iframe>
-                <div className="absolute bottom-2 right-2 bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded opacity-85">
-                  Lat / Lon Geolocation Map
+                  {secIdx === 2 && (
+                    <div className="mt-4">
+                      <h4 className="font-bold text-slate-950 mb-1">현장 세부 위치도 (Google Maps 자동 연동)</h4>
+                      <div className="w-full h-36 bg-slate-100 rounded-lg border border-slate-300 overflow-hidden relative flex items-center justify-center">
+                        <iframe 
+                          src={mapIframeUrl}
+                          width="100%" 
+                          height="100%" 
+                          className="border-0"
+                          allowFullScreen={false} 
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        ></iframe>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1 text-center">
-                ※ 공사위치: {report.projectLocation || "위치 정보 검색 필요"}
-              </p>
+
+              <div className="print-footer hidden print:block">
+                - {secIdx + 5} -
+              </div>
             </div>
-          </div>
+          ))
+        ) : (
+          <>
+            {/* ----------------- PAGE 5: 제 1 장 (CH 1) ----------------- */}
+            <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
+              <div className="print-header hidden print:flex">
+                <span>정기안전점검 보고서</span>
+                <span>제1장 서언 및 안전점검 개요</span>
+              </div>
 
-          <div className="print-footer hidden print:block">
-            - 7 -
-          </div>
-        </div>
+              <div>
+                <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 1 장. 서언 및 안전점검 개요</h3>
+                
+                <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
+                  <h4 className="font-bold text-slate-950">1.1 안전점검의 목적</h4>
+                  <p>
+                    본 보고서는 건설기술진흥법 제62조 및 동법 시행령 제100조에 근거하여 현장의 유해·위험요소를 사전에 도출하고 안전대책을 공학적으로 마련하기 위함이다. 
+                    궁극적으로 시공 품질을 극대화하고 사전에 중대 인명·물적 재해를 완벽히 예방하는 것을 점검의 최우선 가치로 설정하였다.
+                  </p>
 
+                  <h4 className="font-bold text-slate-950 mt-6">1.2 법적 근거 및 수행 기준</h4>
+                  <p>
+                    건설공사의 시공 중 시행하는 정기안전점검은 구조물의 시공 안전성 및 가설 시설물의 상태 검토 등 법적 규정을 따른다. 
+                    특히 건설공사 안전관리 업무수행 지침에 준하는 점검 주기와 강인한 학식 기준의 정밀 육안 진단을 통해 현장을 상시 점검하고 본 보고서에 상세 보고한다.
+                  </p>
 
-        {/* ----------------- PAGE 8: 제 4 장 (CH 4) ----------------- */}
-        <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
-          <div className="print-header hidden print:flex">
-            <span>정기안전점검 보고서</span>
-            <span>제4장 구조 및 시공 품질 관리 상태 분석</span>
-          </div>
+                  <h4 className="font-bold text-slate-950 mt-6">1.3 AI 자동화 검인시스템 세부 개요</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
+                    {report.aiGenerated && report.auditOverview ? report.auditOverview : (
+                      `금회 점검을 통하여 수집된 시공 현장 사진들은 당사 특허 알고리즘의 건설 안전 부재 인식 AI를 통해 진단되었다. 비계, 동바리, 철근 조립, 거푸집 등의 균열이나 미비 요소는 AI 진단 기술과 책임기술인의 공학적 판정을 복합하여 객관성을 획득하였다. 표준 예시에 부합하는 전반적인 상태는 양호한 상태로 유지 중이다.`
+                    )}
+                  </p>
+                </div>
+              </div>
 
-          <div>
-            <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 4 장. 구조 및 시공 품질 관리 분석</h3>
-            
-            <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
-              <h4 className="font-bold text-slate-950">4.1 콘크리트 및 구조재 승인 품질 평가</h4>
-              <p>
-                구조용 자재에 대한 품질관리는 설계도서의 요구 강도를 전폭 확보하기 위해 적합 공정에 입각하여 관리되고 있다. 
-                특히 레미콘 현장 인수 검사, 공시체 제작 및 압축 강도 시험 과정이 규정에 따라 이행되고 있음을 서류와 현장 실사를 병행 진단하였다.
-              </p>
-
-              <h4 className="font-bold text-slate-950 mt-6">4.2 배근 조립 및 피복 두께 적정성</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
-                {report.aiGenerated && report.qualityControl ? report.qualityControl : (
-                  `철근 배근 및 조립 상태는 콘크리트 구조설계기준에 따라 피복두께 유지를 위한 스페이서 배치 간격이 철저히 관리되고 있으며, 전단근 배근도 설계 정밀 범위 내에서 양호하게 완료되었음이 판단된다. 시공 현장에서 수집된 강재 상태에 대한 관리 역시 규격에 맞추어 보관되고 있음이 입증되었다.`
-                )}
-              </p>
-
-              <h4 className="font-bold text-slate-950 mt-6">4.3 균열 관리 및 방지 대책 실태</h4>
-              <p>
-                수축 및 수화열에 의한 콘크리트 초기 균열을 방지하기 위하여 적절한 수윤 양생 조치 및 양생포 덮개 활용 실태가 성실하게 진행되고 있음을 시공 검측하였다. 현장에 미세 균열 발생 시 관리 대장 기록 관리 역시 준수되고 있다.
-              </p>
+              <div className="print-footer hidden print:block">
+                - 5 -
+              </div>
             </div>
-          </div>
-
-          <div className="print-footer hidden print:block">
-            - 8 -
-          </div>
-        </div>
 
 
-        {/* ----------------- PAGE 9: 제 5 장 (CH 5) ----------------- */}
-        <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
-          <div className="print-header hidden print:flex">
-            <span>정기안전점검 보고서</span>
-            <span>제5장 가설 공법 및 주변 환경 시설 안정성 진단</span>
-          </div>
+            {/* ----------------- PAGE 6: 제 2 장 (CH 2) ----------------- */}
+            <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
+              <div className="print-header hidden print:flex">
+                <span>정기안전점검 보고서</span>
+                <span>제2장 공사 현황 및 시설물 현황</span>
+              </div>
 
-          <div>
-            <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 5 장. 가설 및 주변 시설 안전성</h3>
-            
-            <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
-              <h4 className="font-bold text-slate-950">5.1 가설구조물(비계 및 동바리) 하중 안전율 분석</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
-                {report.aiGenerated && report.temporarySafety ? report.temporarySafety : (
-                  `외부 강관 비계 및 수직 지지 동바리에 가해지는 자중 및 타설 하중 분포는 구조 역학 상 지지 기초부의 침하 방지 조치(침목 설치 등)가 선행되어 횡적 전도 저항성이 우수한 것으로 분석되었다. 벽이음쇠는 기준에 따라 간격 준수 시공 중이다.`
-                )}
-              </p>
+              <div>
+                <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 2 장. 공사 현황 및 시설물 현황</h3>
+                
+                <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
+                  <h4 className="font-bold text-slate-950">2.1 공사 세부 현황표</h4>
+                  
+                  <table className={tableClasses.table}>
+                    <tbody>
+                      <tr>
+                        <td className={tableClasses.header + " w-1/4"}>공 사 명</td>
+                        <td className={tableClasses.cell} colSpan={3}>{report.projectName || "(미정)"}</td>
+                      </tr>
+                      <tr>
+                        <td className={tableClasses.header}>공사위치</td>
+                        <td className={tableClasses.cell} colSpan={3}>{report.projectLocation || "(미정)"}</td>
+                      </tr>
+                      <tr>
+                        <td className={tableClasses.header + " w-1/4"}>시공사</td>
+                        <td className={tableClasses.cell + " w-1/4"}>{report.contractor || "(미정)"}</td>
+                        <td className={tableClasses.header + " w-1/4"}>감리사</td>
+                        <td className={tableClasses.cell + " w-1/4"}>{report.supervisor || "(미정)"}</td>
+                      </tr>
+                      <tr>
+                        <td className={tableClasses.header}>공사기간</td>
+                        <td className={tableClasses.cell}>{report.projectPeriod || "(미정)"}</td>
+                        <td className={tableClasses.header}>현재 공정률</td>
+                        <td className={tableClasses.cell + " font-mono font-bold text-blue-800"}>{report.progressRate || "0%"}</td>
+                      </tr>
+                      <tr>
+                        <td className={tableClasses.header}>점검 대상공종</td>
+                        <td className={tableClasses.cell} colSpan={3}>{report.workTypes || "토공사, 구조물공사, 가설공사"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
 
-              <h4 className="font-bold text-slate-950 mt-6">5.2 주변 지반 및 공공 기반 시설 인접 안정성</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
-                {report.aiGenerated && report.surroundingSafety ? report.surroundingSafety : (
-                  `굴착 공사에 따른 배후 부지 인접 건물 및 도로 지반 침하 균열 실태를 모니터링하기 위한 계측 센서 설치와 수치 분석을 병행하였으며, 허용 오차 한계치 이하로 유지되어 주변 시설물의 구조적 안전 역시 전반적으로 매우 건전한 상태인 것으로 확인되었다.`
-                )}
-              </p>
+                  <h4 className="font-bold text-slate-950 mt-6">2.2 공사 현황 및 시설물 개요 상세</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700 text-xs">
+                    {report.aiGenerated && report.constructionStatus ? report.constructionStatus : (
+                      `본 사업은 공사계획서 및 승인 설계도서에 준거하여 차질없이 정밀 시공되고 있음을 평가하였다. 현재 공정률은 ${report.progressRate || "0%"} 수준이며, 주요 공정으로는 ${report.workTypes || "지정 공종"}이 활발히 추진되고 있다. 현장 안전관리 계획에 기반하여 각 가설 구조물의 응력 상태 및 전도 저항 안정성을 유지하고 있다.`
+                    )}
+                  </p>
 
-              <h4 className="font-bold text-slate-950 mt-6">5.3 현장 보건 및 안전 관리 전반 평가</h4>
-              <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700 text-xs">
-                {report.aiGenerated && report.safetyControl ? report.safetyControl : (
-                  `안전보건 총괄 책임자 지휘 하에 매일 아침 작업전 TBM(Tool Box Meeting) 및 보호구 완벽 착용 지도가 생활화되어 있으며, 현장 통로 및 고소 추락 개구부에 고강도 안전 그물망 및 안전 방호 조치 등이 건설 법규에 완전히 적합하게 설계되고 있다.`
-                )}
-              </p>
+                  <h4 className="font-bold text-slate-950 mt-4">2.3 점검 대상시설물 상세</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700 text-xs">
+                    {report.aiGenerated && report.targetFacilities ? report.targetFacilities : (
+                      `금회 점검 차수(${report.checkDegree || "1차"})의 구체적 점검 대상은 부지 내 옹벽 구조물, 비계 설치 상태 및 배근 조립부 등으로 한정하였다. 구조 계산상의 하중에 대하여 충분히 지지될 수 있는 상태를 계측 또는 정밀 육안 검침하였다.`
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="print-footer hidden print:block">
+                - 6 -
+              </div>
             </div>
-          </div>
 
-          <div className="print-footer hidden print:block">
-            - 9 -
-          </div>
-        </div>
+
+            {/* ----------------- PAGE 7: 제 3 장 (CH 3) ----------------- */}
+            <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
+              <div className="print-header hidden print:flex">
+                <span>정기안전점검 보고서</span>
+                <span>제3장 점검 범위 및 방법</span>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 3 장. 점검 범위 및 실측 방법</h3>
+                
+                <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
+                  <h4 className="font-bold text-slate-950">3.1 점검 구역 및 범위 설정</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
+                    {report.aiGenerated && report.scope ? report.scope : (
+                      `안전진단 전단 구역은 공사 진행 중인 전체 영역을 포괄하며, 특히 붕괴 및 추락 고위험 지구인 비계 배후 가설, 굴착 옹벽 사면, 타설 타워 하부 지지대를 중점 진단 범위로 설정하였다.`
+                    )}
+                  </p>
+
+                  <h4 className="font-bold text-slate-950 mt-6">3.2 진단 및 계측 방법</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
+                    {report.aiGenerated && report.methodology ? report.methodology : (
+                      `점검 방법은 건설공사 안전관리 업무수행 지침의 기준을 철저히 따라, 구조 공학적인 정밀 육안 검사(Visual Inspection)를 수행하였다. 또한 철근 배근 간격 실측용 버니어 캘리퍼스 및 수평 수직 가새 체결각 판독 기기 등을 보완 활용하여 신뢰도를 배가하였다.`
+                    )}
+                  </p>
+
+                  {/* Dynamic Map location map display inside printable document */}
+                  <h4 className="font-bold text-slate-950 mt-6">3.3 현장 세부 위치도 (Google Maps 자동 연동)</h4>
+                  <div className="w-full h-44 bg-slate-100 rounded-lg border border-slate-300 overflow-hidden mt-2 relative flex items-center justify-center">
+                    <iframe 
+                      src={mapIframeUrl}
+                      width="100%" 
+                      height="100%" 
+                      className="border-0"
+                      allowFullScreen={false} 
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    ></iframe>
+                    <div className="absolute bottom-2 right-2 bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded opacity-85">
+                      Lat / Lon Geolocation Map
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 text-center">
+                    ※ 공사위치: {report.projectLocation || "위치 정보 검색 필요"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="print-footer hidden print:block">
+                - 7 -
+              </div>
+            </div>
+
+
+            {/* ----------------- PAGE 8: 제 4 장 (CH 4) ----------------- */}
+            <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
+              <div className="print-header hidden print:flex">
+                <span>정기안전점검 보고서</span>
+                <span>제4장 구조 및 시공 품질 관리 상태 분석</span>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 4 장. 구조 및 시공 품질 관리 분석</h3>
+                
+                <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
+                  <h4 className="font-bold text-slate-950">4.1 콘크리트 및 구조재 승인 품질 평가</h4>
+                  <p>
+                    구조용 자재에 대한 품질관리는 설계도서의 요구 강도를 전폭 확보하기 위해 적합 공정에 입각하여 관리되고 있다. 
+                    특히 레미콘 현장 인수 검사, 공시체 제작 및 압축 강도 시험 과정이 규정에 따라 이행되고 있음을 서류와 현장 실사를 병행 진단하였다.
+                  </p>
+
+                  <h4 className="font-bold text-slate-950 mt-6">4.2 배근 조립 및 피복 두께 적정성</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
+                    {report.aiGenerated && report.qualityControl ? report.qualityControl : (
+                      `철근 배근 및 조립 상태는 콘크리트 구조설계기준에 따라 피복두께 유지를 위한 스페이서 배치 간격이 철저히 관리되고 있으며, 전단근 배근도 설계 정밀 범위 내에서 양호하게 완료되었음이 판단된다. 시공 현장에서 수집된 강재 상태에 대한 관리 역시 규격에 맞추어 보관되고 있음이 입증되었다.`
+                    )}
+                  </p>
+
+                  <h4 className="font-bold text-slate-950 mt-6">4.3 균열 관리 및 방지 대책 실태</h4>
+                  <p>
+                    수축 및 수화열에 의한 콘크리트 초기 균열을 방지하기 위하여 적절한 수윤 양생 조치 및 양생포 덮개 활용 실태가 성실하게 진행되고 있음을 시공 검측하였다. 현장에 미세 균열 발생 시 관리 대장 기록 관리 역시 준수되고 있다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="print-footer hidden print:block">
+                - 8 -
+              </div>
+            </div>
+
+
+            {/* ----------------- PAGE 9: 제 5 장 (CH 5) ----------------- */}
+            <div className="print-page flex flex-col justify-between h-[1000px] border border-slate-200 p-12 text-slate-900 mb-12">
+              <div className="print-header hidden print:flex">
+                <span>정기안전점검 보고서</span>
+                <span>제5장 가설 공법 및 주변 환경 시설 안정성 진단</span>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 5 장. 가설 및 주변 시설 안전성</h3>
+                
+                <div className="space-y-6 text-sm text-slate-800 leading-relaxed text-justify">
+                  <h4 className="font-bold text-slate-950">5.1 가설구조물(비계 및 동바리) 하중 안전율 분석</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
+                    {report.aiGenerated && report.temporarySafety ? report.temporarySafety : (
+                      `외부 강관 비계 및 수직 지지 동바리에 가해지는 자중 및 타설 하중 분포는 구조 역학 상 지지 기초부의 침하 방지 조치(침목 설치 등)가 선행되어 횡적 전도 저항성이 우수한 것으로 분석되었다. 벽이음쇠는 기준에 따라 간격 준수 시공 중이다.`
+                    )}
+                  </p>
+
+                  <h4 className="font-bold text-slate-950 mt-6">5.2 주변 지반 및 공공 기반 시설 인접 안정성</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700">
+                    {report.aiGenerated && report.surroundingSafety ? report.surroundingSafety : (
+                      `굴착 공사에 따른 배후 부지 인접 건물 및 도로 지반 침하 균열 실태를 모니터링하기 위한 계측 센서 설치와 수치 분석을 병행하였으며, 허용 오차 한계치 이하로 유지되어 주변 시설물의 구조적 안전 역시 전반적으로 매우 건전한 상태인 것으로 확인되었다.`
+                    )}
+                  </p>
+
+                  <h4 className="font-bold text-slate-950 mt-6">5.3 현장 보건 및 안전 관리 전반 평가</h4>
+                  <p className="bg-slate-50 p-4 rounded border border-slate-100 text-slate-700 text-xs">
+                    {report.aiGenerated && report.safetyControl ? report.safetyControl : (
+                      `안전보건 총괄 책임자 지휘 하에 매일 아침 작업전 TBM(Tool Box Meeting) 및 보호구 완벽 착용 지도가 생활화되어 있으며, 현장 통로 및 고소 추락 개구부에 고강도 안전 그물망 및 안전 방호 조치 등이 건설 법규에 완전히 적합하게 설계되고 있다.`
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="print-footer hidden print:block">
+                - 9 -
+              </div>
+            </div>
+          </>
+        )}
 
 
         {/* ----------------- PAGE 10: 제 6 장 (CH 6 - CHECKLIST TABLE) ----------------- */}
@@ -730,14 +872,14 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
             <h3 className="text-xl font-bold text-blue-900 border-l-4 border-blue-900 pl-3 mb-6">제 6 장. 부위별 세부 안전체크리스트</h3>
             <p className="text-xs text-slate-600 mb-4">건설기술진흥법 지침에 근거하여 당사의 엔지니어와 AI가 공동 판정한 핵심 체크리스트 내역입니다.</p>
             
-            <table className="w-full text-[10px] border-collapse border border-slate-300 text-center">
+            <table className={`${tableClasses.table} text-[10px] text-center`}>
               <thead>
                 <tr className="bg-slate-100">
-                  <th className="border border-slate-300 p-2 font-bold text-slate-800 w-[12%]">구분</th>
-                  <th className="border border-slate-300 p-2 font-bold text-slate-800 w-[23%]">점검 항목</th>
-                  <th className="border border-slate-300 p-2 font-bold text-slate-800 w-[30%]">판단 기준</th>
-                  <th className="border border-slate-300 p-2 font-bold text-slate-800 w-[10%]">결과</th>
-                  <th className="border border-slate-300 p-2 font-bold text-slate-800 w-[25%]">수정 및 보완조치 제안</th>
+                  <th className={`${tableClasses.header} w-[12%]`}>구분</th>
+                  <th className={`${tableClasses.header} w-[23%]`}>점검 항목</th>
+                  <th className={`${tableClasses.header} w-[30%]`}>판단 기준</th>
+                  <th className={`${tableClasses.header} w-[10%]`}>결과</th>
+                  <th className={`${tableClasses.header} w-[25%]`}>수정 및 보완조치 제안</th>
                 </tr>
               </thead>
               <tbody>

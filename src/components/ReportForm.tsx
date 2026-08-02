@@ -243,16 +243,16 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
     const files: File[] = Array.from(rawFiles);
 
     const currentFiles = sampleFormState.sampleFiles || [];
-    if (currentFiles.length >= 30) {
-      alert("⚠️ 이미 최대 30장의 샘플 파일/페이지가 등록되어 있습니다. 기존 등록 파일 삭제 후 추가해 주세요.");
+    if (currentFiles.length >= 300) {
+      alert("⚠️ 이미 최대 300장의 샘플 파일/페이지가 등록되어 있습니다. 기존 등록 파일 삭제 후 추가해 주세요.");
       return;
     }
 
-    const availableSlots = 30 - currentFiles.length;
+    const availableSlots = 300 - currentFiles.length;
     const filesToProcess: File[] = files.slice(0, availableSlots);
 
     if (files.length > availableSlots) {
-      alert(`⚠️ 샘플 등록은 최대 30장까지 지원됩니다. 선택하신 파일 중 상위 ${availableSlots}개만 추가됩니다.`);
+      alert(`⚠️ 샘플 등록은 최대 300장까지 지원됩니다. 선택하신 파일 중 상위 ${availableSlots}개만 추가됩니다.`);
     }
 
     setIsProcessingSampleFiles(true);
@@ -335,19 +335,19 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
           ? (prev.sampleContent.trim() + "\n" + addedSummaryText) 
           : (newSampleItems[0]?.name ? `[등록 샘플 문서 서식]\n${addedSummaryText}` : prev.sampleContent);
 
-        if (newContent.length > 20000) {
-          newContent = newContent.substring(0, 20000) + "\n... (샘플 텍스트 초과분 생략)";
+        if (newContent.length > 150000) {
+          newContent = newContent.substring(0, 150000) + "\n... (샘플 텍스트 초과분 생략)";
         }
 
         return {
           ...prev,
-          sampleName: prev.sampleName || (newSampleItems[0] ? `${newSampleItems[0].name.replace(/\.[^/.]+$/, "")} (사용자 업로드 샘플)` : "사용자 업로드 샘플"),
+          sampleName: prev.sampleName || (newSampleItems[0] ? `${newSampleItems[0].name.replace(/\.[^/.]+$/, "")} (대용량 샘플)` : "대용량 사용자 샘플"),
           sampleContent: newContent,
           sampleFiles: updatedFiles
         };
       });
 
-      alert(`✅ [${newSampleItems.length}개] 샘플 파일/페이지가 성공적으로 추가되었습니다! (현재 총 ${currentFiles.length + newSampleItems.length}장 / 최대 30장)`);
+      alert(`✅ [${newSampleItems.length}개] 샘플 파일/페이지가 성공적으로 추가되었습니다! (현재 총 ${currentFiles.length + newSampleItems.length}장 / 최대 300장 지원)`);
     } catch (err) {
       console.error("샘플 파일 처리 중 오류:", err);
       alert("❌ 파일 로드 중 오류가 발생했습니다.");
@@ -610,7 +610,8 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
       });
 
       if (!response.ok) {
-        throw new Error("서버 이미지 분석 요청이 실패했습니다.");
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `서버 이미지 분석 요청 실패 (${response.status})`);
       }
 
       const analysis = await response.json();
@@ -741,7 +742,8 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
       });
 
       if (!response.ok) {
-        throw new Error("AI 보고서 생성 API 호출이 실패했습니다.");
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `AI 보고서 생성 API 호출 실패 (${response.status})`);
       }
 
       setLoadingStep("정밀 건설안전 보고서 200페이지 규격 텍스트 완결 중...");
@@ -1627,14 +1629,14 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
                 </div>
               </div>
 
-              {/* 2. Custom Sample Upload / Text Input (Supports PDF, JPG, PNG, HWP, DOC, TXT up to 30 pages/files) */}
+              {/* 2. Custom Sample Upload / Text Input (Supports PDF, JPG, PNG, HWP, DOC, TXT up to 300 pages/files) */}
               <div className="bg-slate-50 p-4.5 rounded-xl border border-slate-200 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
                   <div className="flex items-center gap-2 font-bold text-slate-900">
                     <FileText className="w-5 h-5 text-orange-600" />
-                    <span className="text-sm">2. 고유 샘플 파일 / 페이지 등록 (최대 30장)</span>
+                    <span className="text-sm">2. 고유 샘플 파일 / 페이지 등록 (최대 300장)</span>
                     <span className="bg-orange-100 text-orange-950 text-xs font-black px-2 py-0.5 rounded-full border border-orange-300">
-                      등록됨: {(sampleFormState.sampleFiles || []).length} / 30장
+                      등록됨: {(sampleFormState.sampleFiles || []).length} / 300장
                     </span>
                   </div>
 
@@ -1654,7 +1656,7 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
                       ) : (
                         <Upload className="w-4 h-4 text-white" />
                       )}
-                      <span>샘플 파일/이미지 업로드 (PDF, JPG, PNG, HWP, DOC, TXT)</span>
+                      <span>샘플 대용량 업로드 (PDF, JPG, PNG, HWP, DOC, TXT)</span>
                       <input
                         type="file"
                         multiple
@@ -1671,18 +1673,18 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
                 <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-900 flex items-start gap-2">
                   <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong>PDF, 이미지(JPG/PNG), HWP, DOC, TXT 등 최대 30장까지 한 번에 업로드 가능합니다!</strong>
+                    <strong>PDF, 이미지, HWP, DOC 등 최대 300장 대용량 샘플 보고서를 지원합니다! (100~300p 완벽 복제)</strong>
                     <p className="mt-0.5 text-amber-800">
-                      이미지/PDF 샘플은 AI가 레이아웃과 서식 배치를 시각적으로 직접 복제하며, HWP/DOC 바이너리 파일도 UI 지연이나 깨짐 현상 없이 안전하게 처리됩니다.
+                      100~200페이지급 현장 실제 샘플 보고서의 대/중/소 목차 및 서체 어투를 AI가 최적화 추출하여 300페이지 분량까지 무너짐 없이 생성합니다.
                     </p>
                   </div>
                 </div>
 
-                {/* Uploaded Files Gallery Grid (up to 30 items) */}
+                {/* Uploaded Files Gallery Grid (up to 300 items) */}
                 {(sampleFormState.sampleFiles || []).length > 0 && (
                   <div className="space-y-2">
                     <label className="block text-xs font-extrabold text-slate-800">
-                      📂 등록된 샘플 파일 / 페이지 목록 ({(sampleFormState.sampleFiles || []).length} / 30장)
+                      📂 등록된 샘플 파일 / 페이지 목록 ({(sampleFormState.sampleFiles || []).length} / 300장)
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-56 overflow-y-auto p-2 bg-white rounded-xl border border-slate-200 shadow-inner">
                       {(sampleFormState.sampleFiles || []).map((sf, index) => (

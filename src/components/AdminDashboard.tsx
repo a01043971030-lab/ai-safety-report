@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { SafetyReport, UserProfile, MemberStatus, NoticeItem, LoginLogItem } from "../types";
 import { 
   Settings, 
@@ -80,6 +80,8 @@ export default function AdminDashboard({
   // Search & Filter states for Master Reports and Login Logs
   const [globalReportSearch, setGlobalReportSearch] = useState("");
   const [globalCompanyFilter, setGlobalCompanyFilter] = useState("ALL");
+  const [reportViewMode, setReportViewMode] = useState<"COMPANY_GROUP" | "GRID">("COMPANY_GROUP");
+  const [expandedCompanies, setExpandedCompanies] = useState<Record<string, boolean>>({});
   const [loginLogSearch, setLoginLogSearch] = useState("");
   const [loginLogStatusFilter, setLoginLogStatusFilter] = useState("ALL");
 
@@ -226,8 +228,13 @@ export default function AdminDashboard({
   // Filter Master Reports List
   const filteredMasterReports = reports.filter(r => {
     // Filter by company
-    if (globalCompanyFilter !== "ALL" && r.companyName !== globalCompanyFilter && r.creatorUsername !== globalCompanyFilter) {
-      return false;
+    if (globalCompanyFilter !== "ALL") {
+      const target = globalCompanyFilter.trim().toLowerCase();
+      const comp = (r.companyName || "").trim().toLowerCase();
+      const user = (r.creatorUsername || "").trim().toLowerCase();
+      
+      const isMatch = comp === target || user === target || (comp.length > 0 && comp.includes(target));
+      if (!isMatch) return false;
     }
     // Search query
     if (!globalReportSearch) return true;
@@ -241,6 +248,93 @@ export default function AdminDashboard({
       (r.checkDegree && r.checkDegree.toLowerCase().includes(term))
     );
   });
+
+  // Aggregate reports by company for Company Group View
+  interface CompanyGroup {
+    key: string;
+    companyName: string;
+    username?: string;
+    user?: UserProfile;
+    reports: SafetyReport[];
+  }
+
+  const companyReportGroups = useMemo<CompanyGroup[]>(() => {
+    const groupMap = new Map<string, CompanyGroup>();
+
+    // 1. Initialize map with all registered users so every company is represented
+    allUsers.forEach((u) => {
+      const key = u.username;
+      groupMap.set(key, {
+        key,
+        companyName: u.companyName || "(미입력)",
+        username: u.username,
+        user: u,
+        reports: []
+      });
+    });
+
+    // 2. Put reports into corresponding company groups
+    reports.forEach((rep) => {
+      let matchedKey = "";
+      for (const [key, group] of groupMap.entries()) {
+        const uComp = (group.companyName || "").trim().toLowerCase();
+        const uName = (group.username || "").trim().toLowerCase();
+        const rComp = (rep.companyName || "").trim().toLowerCase();
+        const rUser = (rep.creatorUsername || "").trim().toLowerCase();
+
+        if (
+          (rUser.length > 0 && rUser === uName) ||
+          (rComp.length > 0 && uComp.length > 0 && (rComp === uComp || rComp.includes(uComp) || uComp.includes(rComp)))
+        ) {
+          matchedKey = key;
+          break;
+        }
+      }
+
+      if (matchedKey && groupMap.has(matchedKey)) {
+        groupMap.get(matchedKey)!.reports.push(rep);
+      } else {
+        // Unregistered/guest company group
+        const fallbackKey = rep.companyName || rep.creatorUsername || "미지정 회사";
+        if (!groupMap.has(fallbackKey)) {
+          groupMap.set(fallbackKey, {
+            key: fallbackKey,
+            companyName: rep.companyName || "미지정 회사",
+            username: rep.creatorUsername || "-",
+            reports: []
+          });
+        }
+        groupMap.get(fallbackKey)!.reports.push(rep);
+      }
+    });
+
+    let result = Array.from(groupMap.values());
+
+    // 3. Filter by company dropdown
+    if (globalCompanyFilter !== "ALL") {
+      const target = globalCompanyFilter.trim().toLowerCase();
+      result = result.filter(
+        g => g.companyName.toLowerCase().includes(target) || (g.username && g.username.toLowerCase().includes(target))
+      );
+    }
+
+    // 4. Filter by global search term
+    if (globalReportSearch.trim()) {
+      const term = globalReportSearch.trim().toLowerCase();
+      result = result.filter(g => {
+        const matchesComp = g.companyName.toLowerCase().includes(term) || (g.username && g.username.toLowerCase().includes(term));
+        const matchesReport = g.reports.some(r =>
+          (r.projectName && r.projectName.toLowerCase().includes(term)) ||
+          (r.client && r.client.toLowerCase().includes(term)) ||
+          (r.contractor && r.contractor.toLowerCase().includes(term)) ||
+          (r.checkDegree && r.checkDegree.toLowerCase().includes(term))
+        );
+        return matchesComp || matchesReport;
+      });
+    }
+
+    return result;
+  }, [allUsers, reports, globalCompanyFilter, globalReportSearch]);
 
   // Filter Login Logs List
   const filteredLoginLogs = loginLogs.filter(l => {
@@ -307,9 +401,13 @@ export default function AdminDashboard({
     if (!selectedUser) return false;
     
     // Match by creatorUsername OR companyName
+    const userCompName = (selectedUser.companyName || "").trim().toLowerCase();
+    const repCompName = (r.companyName || "").trim().toLowerCase();
+
     const isUserReport = 
       (r.creatorUsername && r.creatorUsername === selectedUser.username) ||
-      (r.companyName?.trim() === selectedUser.companyName?.trim());
+      (userCompName.length > 0 && repCompName.length > 0 && (repCompName === userCompName || repCompName.includes(userCompName) || userCompName.includes(repCompName)));
+    
     if (!isUserReport) return false;
 
     // Search query match
@@ -318,6 +416,7 @@ export default function AdminDashboard({
     return (
       (r.projectName && r.projectName.toLowerCase().includes(term)) ||
       (r.client && r.client.toLowerCase().includes(term)) ||
+      (r.contractor && r.contractor.toLowerCase().includes(term)) ||
       (r.checkDegree && r.checkDegree.toLowerCase().includes(term))
     );
   });
@@ -1598,6 +1697,34 @@ export default function AdminDashboard({
                   </option>
                 ))}
               </select>
+              {/* View Mode Toggle: Company Group vs Grid */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setReportViewMode("COMPANY_GROUP")}
+                  className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    reportViewMode === "COMPANY_GROUP" 
+                      ? "bg-blue-600 text-white shadow-sm" 
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  🏢 회사별 폴더 모아보기
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReportViewMode("GRID")}
+                  className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    reportViewMode === "GRID" 
+                      ? "bg-blue-600 text-white shadow-sm" 
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  📋 전체 타일 목록
+                </button>
+              </div>
             </div>
 
             <span className="text-xs font-extrabold text-slate-600">
@@ -1605,7 +1732,209 @@ export default function AdminDashboard({
             </span>
           </div>
 
-          {/* Master Report Grid / Cards */}
+          {/* Master Report Rendering depending on View Mode */}
+          {reportViewMode === "COMPANY_GROUP" ? (
+            /* ================= COMPANY GROUP VIEW ================= */
+            <div className="space-y-6">
+              {companyReportGroups.length > 0 ? (
+                companyReportGroups.map((group) => {
+                  const isExpanded = expandedCompanies[group.key] !== false; // default expanded
+                  return (
+                    <div 
+                      key={group.key}
+                      className="bg-white border border-slate-250 rounded-2xl shadow-sm overflow-hidden transition-all"
+                    >
+                      {/* Company Header Banner */}
+                      <div 
+                        onClick={() => setExpandedCompanies(prev => ({ ...prev, [group.key]: !isExpanded }))}
+                        className="bg-slate-900 hover:bg-slate-850 text-white p-4 px-6 flex flex-wrap items-center justify-between gap-4 cursor-pointer transition-colors select-none group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-600/30 group-hover:bg-blue-600/50 border border-blue-400/30 flex items-center justify-center text-blue-400 group-hover:text-blue-300 shrink-0 transition-colors">
+                            <Building2 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 
+                                className="text-base font-extrabold text-white group-hover:text-blue-300 group-hover:underline flex items-center gap-1.5 transition-colors"
+                                title="클릭하여 이 회사의 보고서 목록 펼치기/접기"
+                              >
+                                {group.companyName}
+                                <span className="text-xs font-normal text-slate-400 group-hover:text-blue-200">
+                                  {isExpanded ? "📂 (열림)" : "📁 (클릭하여 보고서 보기)"}
+                                </span>
+                              </h3>
+                              <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono border border-slate-700">
+                                ID: @{group.username}
+                              </span>
+                              {group.user && (
+                                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
+                                  group.user.status === "정회원" ? "bg-green-500/20 text-green-300 border border-green-500/30" :
+                                  group.user.status === "정회원 승인대기" ? "bg-red-500/20 text-red-300 border border-red-500/30" :
+                                  "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                }`}>
+                                  {group.user.status}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              대표자: {group.user?.representative || "-"} | 연락처: {group.user?.phone || group.user?.email || "-"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <span className="bg-blue-500/20 text-blue-300 text-xs font-black px-3 py-1 rounded-full border border-blue-500/30 font-mono">
+                            작성 보고서: {group.reports.length}건
+                          </span>
+
+                          {group.user && (
+                            <button
+                              onClick={() => onCreateReportForUser(group.user!)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                              title="이 회원사 명의로 새 안전 보고서 대리 작성"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              대리 작성
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => setExpandedCompanies(prev => ({ ...prev, [group.key]: !isExpanded }))}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700 transition-colors cursor-pointer"
+                          >
+                            {isExpanded ? "접기 ▲" : `회사 보고서 펼치기 (${group.reports.length}건) ▼`}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Company Reports Grid inside Expanded Folder */}
+                      {isExpanded && (
+                        <div className="p-5 bg-slate-50/50 border-t border-slate-200">
+                          {group.reports.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {group.reports.map((report) => (
+                                <div
+                                  key={report.id}
+                                  className="bg-white border border-slate-200 hover:border-blue-400 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+                                >
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+                                      <span className="text-[10px] bg-blue-50 text-blue-800 font-extrabold px-2 py-0.5 rounded-full">
+                                        {report.checkDegree || "정기점검"}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 font-mono">
+                                        {new Date(report.updatedAt || Date.now()).toLocaleDateString("ko-KR")}
+                                      </span>
+                                    </div>
+
+                                    <div>
+                                      <h4 className="text-xs font-black text-slate-900 leading-snug line-clamp-2">
+                                        {report.projectName || "(공사명 없음)"}
+                                      </h4>
+                                      <p className="text-[10.5px] text-slate-500 mt-1">
+                                        발주: <strong>{report.client || "-"}</strong> | 시공: <strong>{report.contractor || "-"}</strong>
+                                      </p>
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-[10px] bg-slate-50 p-2 rounded-lg border border-slate-150 text-slate-600 font-mono">
+                                      <span>📸 사진: {report.photos?.length || 0}장</span>
+                                      <span>📅 점검일: {report.checkDate || "-"}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Actions */}
+                                  <div className="grid grid-cols-6 gap-1 border-t border-slate-100 pt-2.5">
+                                    <button
+                                      onClick={() => setPreviewModalReport(report)}
+                                      className="py-1.5 px-1 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 transition-colors cursor-pointer shadow-sm"
+                                      title="관리자 모달창에서 보고서 상세 내용 확인"
+                                    >
+                                      <Eye className="w-3.5 h-3.5 text-white" />
+                                      상세내용
+                                    </button>
+
+                                    <button
+                                      onClick={() => onViewReport(report)}
+                                      className="py-1.5 px-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 transition-colors cursor-pointer"
+                                      title="전체 화면 뷰어"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-slate-700" />
+                                      전체화면
+                                    </button>
+
+                                    <button
+                                      onClick={() => triggerDirectWordDownload(report)}
+                                      className="py-1.5 px-1 bg-blue-50 hover:bg-blue-100 text-blue-800 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 border border-blue-100 transition-colors cursor-pointer"
+                                      title="한글(MS Word) 다운로드"
+                                    >
+                                      <Download className="w-3.5 h-3.5 text-blue-600" />
+                                      한글다운
+                                    </button>
+
+                                    <button
+                                      onClick={() => onViewReport(report)}
+                                      className="py-1.5 px-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 transition-colors cursor-pointer"
+                                      title="인쇄 및 PDF 출력"
+                                    >
+                                      <Printer className="w-3.5 h-3.5 text-slate-600" />
+                                      프린트
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        const newRep: SafetyReport = {
+                                          ...report,
+                                          id: `report_${Date.now()}_copy`,
+                                          projectName: `${report.projectName} (관리자 복사본)`,
+                                          createdAt: Date.now(),
+                                          updatedAt: Date.now()
+                                        };
+                                        onSaveReport(newRep);
+                                        alert("보고서가 복사되었습니다.");
+                                      }}
+                                      className="py-1.5 px-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 border border-amber-100 transition-colors cursor-pointer"
+                                      title="보고서 복사"
+                                    >
+                                      <Copy className="w-3.5 h-3.5 text-amber-600" />
+                                      복사
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        if (report.id && window.confirm(`[${report.projectName}] 보고서를 정말 삭제하시겠습니까?`)) {
+                                          onDeleteReport(report.id);
+                                        }
+                                      }}
+                                      className="py-1.5 px-1 bg-red-50 hover:bg-red-100 text-red-700 text-[9px] font-extrabold rounded-lg flex flex-col items-center gap-0.5 border border-red-100 transition-colors cursor-pointer"
+                                      title="삭제"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                                      삭제
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-8 text-center text-slate-400 text-xs font-semibold border-2 border-dashed border-slate-200 rounded-xl bg-white">
+                              현재 [{group.companyName}] 회원사가 작성한 안전점검 보고서가 없습니다.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 space-y-2">
+                  <Building2 className="w-10 h-10 mx-auto text-slate-300" />
+                  <p className="text-sm font-bold text-slate-600">등록된 회원사 및 검색 조건에 맞는 회사가 없습니다.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ================= GRID TILE VIEW ================= */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredMasterReports.length > 0 ? (
               filteredMasterReports.map((report) => (
@@ -1724,6 +2053,7 @@ export default function AdminDashboard({
               </div>
             )}
           </div>
+          )}
 
         </div>
       ) : dashboardMode === "LOGIN_LOGS" ? (

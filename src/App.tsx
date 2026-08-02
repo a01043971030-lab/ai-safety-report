@@ -333,11 +333,15 @@ export default function App() {
     try {
       let list: LoginLogItem[] = [];
       if (dbStatus === "CONNECTED") {
-        const q = query(collection(db, "login_logs"), orderBy("timestamp", "desc"));
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() } as LoginLogItem);
-        });
+        try {
+          const q = query(collection(db, "login_logs"), orderBy("timestamp", "desc"));
+          const querySnapshot = await getDocs(q);
+          querySnapshot.forEach((docSnap) => {
+            list.push({ id: docSnap.id, ...docSnap.data() } as LoginLogItem);
+          });
+        } catch (fsErr) {
+          console.warn("Firestore fetch login_logs error, falling back to local storage:", fsErr);
+        }
       }
 
       if (list.length === 0) {
@@ -800,6 +804,7 @@ export default function App() {
       setLoading(true);
       const finalReportData = {
         ...reportData,
+        companyName: reportData.companyName || currentUser?.companyName || "",
         creatorUsername: reportData.creatorUsername || currentUser?.username || ""
       };
 

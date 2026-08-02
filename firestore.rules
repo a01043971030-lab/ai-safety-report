@@ -20,5 +20,10 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow read, write: if true;
     }
+
+    // Allow read/write access to login_logs collection
+    match /login_logs/{logId} {
+      allow read, write: if true;
+    }
   }
 }

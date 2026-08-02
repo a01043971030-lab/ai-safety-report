@@ -161,23 +161,23 @@ app.post("/api/generate-report-text", async (req, res) => {
     const sampleConfig = reportData.sampleConfig || {};
     let sampleFilesDetail = "";
     if (sampleConfig.sampleFiles && Array.isArray(sampleConfig.sampleFiles) && sampleConfig.sampleFiles.length > 0) {
-      sampleFilesDetail = `\n[사용자 등록 샘플 파일 및 페이지 첨부 목록 (총 ${sampleConfig.sampleFiles.length}장/개, 최대 30장 지원)]:\n` +
+      sampleFilesDetail = `\n[사용자 등록 샘플 파일 및 대용량 페이지 첨부 목록 (총 ${sampleConfig.sampleFiles.length}장/개, 최대 300장 지원)]:\n` +
         sampleConfig.sampleFiles.map((sf: any, idx: number) => {
           const fileTypeLabel = (sf.type || "doc").toUpperCase();
-          const textPreview = sf.textContent ? ` (텍스트 요약: ${sf.textContent.substring(0, 300)}...)` : "";
+          const textPreview = sf.textContent ? ` (텍스트 요약: ${sf.textContent.substring(0, 500)}...)` : "";
           return `${idx + 1}. [${fileTypeLabel}] ${sf.name}${textPreview}`;
         }).join("\n") + "\n";
     }
 
     const sampleText = (sampleConfig.sampleContent 
-      ? `\n[사용자 등록 기준 샘플 보고서 (목차/문단/표 복제 기준)]:\n${sampleConfig.sampleContent}\n` 
+      ? `\n[사용자 등록 기준 샘플 보고서 (목차/문단/표 복제 기준, 100~300p 지원)]:\n${sampleConfig.sampleContent}\n` 
       : "") + sampleFilesDetail;
     const fontTonePrompt = `
-- 사용자 등록 샘플 양식명: ${sampleConfig.sampleName || "국토부 정기안전점검 표준샘플"}
+- 사용자 등록 샘플 양식명: ${sampleConfig.sampleName || "국토부 정기안전점검 대용량 표준샘플"}
 - 적용 지정 글꼴 스타일: ${sampleConfig.fontStyle || "맑은 고딕 (표준)"}
 - 적용 서술 어투 톤앤매너: ${sampleConfig.toneStyle || "격식체 (~함, ~사료됨)"}
 - 적용 표/단락 디자인: ${sampleConfig.tableStyle || "표준 격자형"}
-- 첨부 등록된 샘플 페이지/파일 수: ${sampleConfig.sampleFiles?.length || 0}장 (최대 30장 지원)
+- 첨부 등록된 샘플 페이지/파일 수: ${sampleConfig.sampleFiles?.length || 0}장 (최대 300장 대용량 지원)
 `;
 
     const prompt = `당신은 건설현장 '정기안전점검 보고서'를 작성하는 고도화된 맞춤형 전문 AI입니다.
@@ -245,18 +245,39 @@ ${photoContext || "업로드된 사진 없음"}
 
 [출력 형식]:
 * 순수 JSON 구조로 출력하십시오.
+* 등록된 샘플 보고서의 목차 및 대/중/소 번호 체계, 단락 순서, 어투를 100% 동일하게 반영한 customSections와 tocEntries를 필수로 생성하십시오.
 
 JSON 구조:
 {
-  "auditOverview": "제1장 일반사항 및 제2장 개요 (1.1 위치도, 1.2 전경사진, 1.3 실시결과 요약문 등) 기준 샘플 양식 서술 복제 텍스트",
+  "tocEntries": [
+    { "title": "제1장 일반사항 및 개요", "pageLabel": "Page 05" },
+    { "title": "제2장 공사 현황 및 시설물 개요", "pageLabel": "Page 06" }
+  ],
+  "customSections": [
+    {
+      "chapterNumber": "제1장",
+      "title": "일반사항 및 개요",
+      "subsections": [
+        {
+          "subtitle": "1.1 점검의 목적 및 법적 근거",
+          "content": "샘플 지정 어투(~함, ~사료됨 등)에 맞춘 세부 점검내용 작성"
+        },
+        {
+          "subtitle": "1.2 점검대상 시설물 위치 및 개요",
+          "content": "현장 공사정보 및 사진데이터 연동 서술"
+        }
+      ]
+    }
+  ],
+  "auditOverview": "제1장 일반사항 및 개요 서술 복제 텍스트",
   "constructionStatus": "제2장 공사현황 및 점검 범위/내용 상세 서술",
-  "targetFacilities": "제3장 3.1 점검대상 구조물 개요 (도면 및 작업계획서 연계)",
+  "targetFacilities": "제3장 3.1 점검대상 구조물 개요",
   "scope": "점검범위 및 세부 안전점검 구역 정의",
-  "methodology": "2.5 사용장비 및 시험기기 현황 (기본 사진 + 현장 추가 사진 연계)",
-  "qualityControl": "제3장 3.2 사전자료 검토/외관조사, 3.3 품질 및 시공 상태, 3.4 품질·자재관리의 적정성 서술",
-  "safetyControl": "제3장 3.8 건설공사 안전관리 검토 (안전교육 사진 연계)",
-  "surroundingSafety": "제3장 3.5 인접건축물 또는 구조물의 안전성 등 공사장 주변 안전조치의 적정성 서술",
-  "temporarySafety": "제3장 3.6 건설기계 사용에 대한 안전성 및 3.7 임시시설 및 가설공법의 안전성 서술",
+  "methodology": "점검 장비 및 계측 실측 방법",
+  "qualityControl": "구조 및 시공 품질 관리 상태 서술",
+  "safetyControl": "건설공사 안전관리 검토 서술",
+  "surroundingSafety": "공사장 주변 및 인접시설 안전조치 적정성 서술",
+  "temporarySafety": "가설구조물 및 건설기계 안전성 서술",
   "checklist": [
     {
       "category": "점검분야 (가설공사, 구조물공사, 품질관리, 주변안전 등)",
@@ -266,10 +287,10 @@ JSON 구조:
       "action": "조치/권고사항"
     }
   ],
-  "comprehensiveOpinion": "제4장 4.1 정기안전점검 결과의 종합결론",
-  "improvementMeasures": "제4장 4.2 시공 시 특별 관리가 필요한 사항",
-  "leadEngineerOpinion": "책임기술자 최종 종합 의견 및 서명 날인 의견",
-  "comprehensiveConclusion": "부록 시공사 협조자료 안내 및 최종 결론"
+  "comprehensiveOpinion": "종합 의견",
+  "improvementMeasures": "개선 대책 및 건의사항",
+  "leadEngineerOpinion": "책임기술자 최종 판정 의견",
+  "comprehensiveConclusion": "종합 최종 결론"
 }
 * 8개 이상의 다채로운 체크리스트 항목을 구성하십시오.`;
 

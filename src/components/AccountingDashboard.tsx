@@ -284,7 +284,10 @@ export default function AccountingDashboard({
         })
       });
 
-      if (!res.ok) throw new Error("분류 실패");
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `AI 분류 실패 (${res.status})`);
+      }
       
       const data = await res.json();
       
