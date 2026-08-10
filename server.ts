@@ -295,7 +295,7 @@ JSON 구조:
 * 8개 이상의 다채로운 체크리스트 항목을 구성하십시오.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -363,7 +363,7 @@ app.post("/api/classify-transaction", async (req, res) => {
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -415,7 +415,7 @@ ${formattedLedger || "입력된 거래가 없습니다."}
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: chatContents,
       config: {
         systemInstruction: systemPrompt,
@@ -476,7 +476,7 @@ app.post("/api/support-chat", async (req, res) => {
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: chatContents,
       config: {
         systemInstruction: systemPrompt,
