@@ -73,7 +73,7 @@ app.post("/api/analyze-image", async (req, res) => {
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         {
           inlineData: {
@@ -170,7 +170,7 @@ app.post("/api/generate-report-text", async (req, res) => {
     }
 
     const sampleText = (sampleConfig.sampleContent 
-      ? `\n[사용자 등록 기준 샘플 보고서 (목차/문단/표 복제 기준, 100~300p 지원)]:\n${sampleConfig.sampleContent}\n` 
+      ? `\n[사용자 등록 기준 샘플 보고서 (목차/문단/표 복제 기준, 1~300장 업로드 지원)]:\n${sampleConfig.sampleContent}\n` 
       : "") + sampleFilesDetail;
     const fontTonePrompt = `
 - 사용자 등록 샘플 양식명: ${sampleConfig.sampleName || "국토부 정기안전점검 대용량 표준샘플"}
@@ -295,7 +295,7 @@ JSON 구조:
 * 8개 이상의 다채로운 체크리스트 항목을 구성하십시오.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -363,7 +363,7 @@ app.post("/api/classify-transaction", async (req, res) => {
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -415,7 +415,7 @@ ${formattedLedger || "입력된 거래가 없습니다."}
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: chatContents,
       config: {
         systemInstruction: systemPrompt,
@@ -476,7 +476,7 @@ app.post("/api/support-chat", async (req, res) => {
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: chatContents,
       config: {
         systemInstruction: systemPrompt,
