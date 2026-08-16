@@ -494,6 +494,127 @@ app.post("/api/support-chat", async (req, res) => {
   }
 });
 
+// 5. API Route: Interactive Conversational Report Editor
+app.post("/api/edit-report-chat", async (req, res) => {
+  try {
+    const { report, userMessage, chatHistory } = req.body;
+    if (!report || !userMessage) {
+      return res.status(400).json({ error: "보고서 데이터와 사용자 메시지가 필요합니다." });
+    }
+
+    const ai = getAIClient();
+
+    const systemPrompt = `당신은 대한민국 국토교통부 정기안전점검 보고서를 실시간 대화식으로 수정, 추가, 삭제, 문체 정제하는 최고의 AI 기술 보고서 편집기입니다.
+사용자는 생성된 보고서를 보면서 자연어로 수정 요구사항(예: "공사명을 'OOO'로 바꿔줘", "책임기술자 총평에 동절기 한파 관련 안전수칙 내용을 추가해줘", "체크리스트에 '추락방지망' 설치 항목 추가해줘", "3.4항목 삭제해줘", "전체 문체를 공식 어조(~사료됨)로 다듬어줘" 등)을 제시합니다.
+
+[현재 보고서 주요 현황]:
+- 공사명: ${report.projectName}
+- 구조물/공종: ${report.workTypes}
+- 점검차수: ${report.checkDegree}
+- 발주자: ${report.client}
+- 시공자: ${report.contractor}
+- 건설사업단: ${report.supervisor}
+- 안전진단기관: ${report.companyName}
+- 책임기술자: ${report.leadEngineer}
+- 점검일자: ${report.checkDate}
+- 현장위치: ${report.projectLocation}
+
+[수정 지침]:
+1. 사용자의 요청("${userMessage}")을 정밀 분석하여, 제공된 보고서 객체(report)의 해당하는 속성 값을 수정, 추가, 삭제하십시오.
+2. 체크리스트 추가/수정/삭제 요청 시 checklist 배열을 업데이트하십시오.
+3. 목차나 단원 추가/삭제 요청 시 customSections 배열을 업데이트하십시오.
+4. 총평/의견 보강 요청 시 comprehensiveOpinion, leadEngineerOpinion, comprehensiveConclusion 등을 격식 있는 전문 건설공학 어조(~사료됨, ~확인됨)로 다듬고 보강하십시오.
+5. 반드시 JSON으로 응답하며, replyMessage(친절하고 명확한 결과 안내 메시지)와 updatedReport(변경 반영된 SafetyReport 객체)를 포함하십시오.`;
+
+    const chatContents: any[] = [];
+    if (Array.isArray(chatHistory)) {
+      chatHistory.forEach((msg: any) => {
+        if (msg.content) {
+          chatContents.push({
+            role: msg.role === "assistant" ? "model" as const : "user" as const,
+            parts: [{ text: msg.content }]
+          });
+        }
+      });
+    }
+    chatContents.push({
+      role: "user" as const,
+      parts: [{ text: userMessage }]
+    });
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: chatContents,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            replyMessage: { type: Type.STRING, description: "사용자에게 전달할 대화식 결과 설명 응답" },
+            changesSummary: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "변경된 항목 요약 목록"
+            },
+            updatedReport: {
+              type: Type.OBJECT,
+              description: "수정된 SafetyReport 객체 속성들",
+              properties: {
+                projectName: { type: Type.STRING },
+                projectLocation: { type: Type.STRING },
+                client: { type: Type.STRING },
+                contractor: { type: Type.STRING },
+                supervisor: { type: Type.STRING },
+                checkDegree: { type: Type.STRING },
+                checkDate: { type: Type.STRING },
+                leadEngineer: { type: Type.STRING },
+                companyName: { type: Type.STRING },
+                workTypes: { type: Type.STRING },
+                summary: { type: Type.STRING },
+                comprehensiveOpinion: { type: Type.STRING },
+                leadEngineerOpinion: { type: Type.STRING },
+                comprehensiveConclusion: { type: Type.STRING },
+                auditOverview: { type: Type.STRING },
+                constructionStatus: { type: Type.STRING },
+                targetFacilities: { type: Type.STRING },
+                scope: { type: Type.STRING },
+                methodology: { type: Type.STRING },
+                qualityControl: { type: Type.STRING },
+                safetyControl: { type: Type.STRING },
+                surroundingSafety: { type: Type.STRING },
+                temporarySafety: { type: Type.STRING },
+                improvementMeasures: { type: Type.STRING }
+              }
+            }
+          },
+          required: ["replyMessage", "updatedReport"]
+        }
+      }
+    });
+
+    if (!response.text) {
+      throw new Error("Gemini API가 빈 응답을 반환했습니다.");
+    }
+
+    const parsed = JSON.parse(response.text);
+    const mergedReport = {
+      ...report,
+      ...(parsed.updatedReport || {}),
+      updatedAt: Date.now()
+    };
+
+    res.json({
+      replyMessage: parsed.replyMessage,
+      updatedReport: mergedReport,
+      changesSummary: parsed.changesSummary || []
+    });
+  } catch (error: any) {
+    console.error("Report Chatbot Edit error:", error);
+    res.status(500).json({ error: error.message || "보고서 대화식 수정 중 오류가 발생했습니다." });
+  }
+});
+
 async function startServer() {
   // Serve Vite client assets in development and production
   if (process.env.NODE_ENV !== "production") {

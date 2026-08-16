@@ -1337,6 +1337,10 @@ export default function App() {
         {screen === "VIEW" && currentReport && (
           <ReportViewer 
             report={currentReport} 
+            onUpdateReport={(updated) => {
+              setCurrentReport(updated);
+              handleSaveReport(updated);
+            }}
             onBack={() => {
               if (adminLoggedIn) {
                 setScreen("ADMIN");
@@ -2114,7 +2118,7 @@ export default function App() {
       )}
 
       {/* Simulator floating controller and toggle button hidden as requested */}
-      <SupportChatbot currentUser={currentUser} />
+      {/* SupportChatbot removed as requested */}
     </div>
   );
 }

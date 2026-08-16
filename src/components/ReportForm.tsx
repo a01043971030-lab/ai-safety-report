@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { SafetyReport, PhotoItem, SampleTemplateConfig, SampleFileItem, PHOTO_MAIN_CATEGORIES, PHOTO_SUB_CATEGORIES } from "../types";
 import { generateReportFallback } from "../utils/aiReportFallback";
 import GoogleMapsSelector from "./GoogleMapsSelector";
+import { extractTextFromDocument } from "../utils/documentParser";
 import { 
   Plus, 
   Trash2, 
@@ -265,9 +266,6 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
       for (const file of filesToProcess) {
         const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
         const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExt);
-        const isPdf = file.type === 'application/pdf' || fileExt === 'pdf';
-        const isText = ['txt', 'md', 'csv', 'json'].includes(fileExt);
-
         const itemId = `sample-file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
         if (isImage) {
@@ -284,49 +282,23 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
           });
 
           addedSummaryText += `\n[등록 샘플 페이지 이미지: ${file.name}]`;
-        } else if (isPdf) {
-          const blobUrl = URL.createObjectURL(file);
-          newSampleItems.push({
-            id: itemId,
-            name: file.name,
-            type: 'pdf',
-            dataUrl: blobUrl,
-            size: file.size
-          });
-
-          addedSummaryText += `\n[등록 샘플 페이지 PDF 문서: ${file.name}]`;
-        } else if (isText) {
-          // Read plain text file safely up to 10,000 chars
-          const textContent = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (evt) => resolve((evt.target?.result as string) || '');
-            reader.onerror = () => resolve('');
-            reader.readAsText(file);
-          });
-
-          newSampleItems.push({
-            id: itemId,
-            name: file.name,
-            type: 'text',
-            textContent: textContent.substring(0, 5000),
-            size: file.size
-          });
-
-          if (textContent) {
-            addedSummaryText += `\n[등록 샘플 문서: ${file.name}]\n${textContent.substring(0, 1000)}`;
-          }
         } else {
-          // Binary doc formats like .hwp, .doc, .docx
+          // Parse HWP, HWPX, PDF, DOCX, TXT documents
+          const parsed = await extractTextFromDocument(file);
           const blobUrl = URL.createObjectURL(file);
+
           newSampleItems.push({
             id: itemId,
             name: file.name,
             type: 'doc',
             dataUrl: blobUrl,
+            textContent: parsed.text.substring(0, 5000),
             size: file.size
           });
 
-          addedSummaryText += `\n[등록 샘플 양식 문서: ${file.name} (${fileExt.toUpperCase()} 서식)]`;
+          if (parsed.text) {
+            addedSummaryText += `\n[등록 샘플 문서: ${file.name} (${fileExt.toUpperCase()})]\n${parsed.text.substring(0, 2000)}`;
+          }
         }
       }
 
@@ -686,6 +658,55 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
     }
   };
 
+  // Handle Document uploads (HWP, HWPX, PDF, DOCX, TXT, etc.)
+  const processDocumentFiles = async (docFiles: File[]) => {
+    if (docFiles.length === 0) return;
+
+    setIsProcessingSampleFiles(true);
+    let successCount = 0;
+    let extractedSummary = "";
+
+    try {
+      const newItems: SampleFileItem[] = [];
+
+      for (const file of docFiles) {
+        const parsed = await extractTextFromDocument(file);
+        const itemId = `doc-file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        
+        newItems.push({
+          id: itemId,
+          name: file.name,
+          type: 'doc',
+          dataUrl: URL.createObjectURL(file),
+          textContent: parsed.text,
+          size: file.size
+        });
+
+        extractedSummary += `\n[등록 서식 문서: ${file.name}]\n${parsed.text.substring(0, 2000)}\n`;
+        successCount++;
+      }
+
+      setSampleFormState(prev => {
+        const newConfig: SampleTemplateConfig = {
+          ...prev,
+          sampleName: prev.sampleName || (docFiles[0] ? `${docFiles[0].name.replace(/\.[^/.]+$/, "")} 서식` : "사용자 등록 문서"),
+          sampleContent: ((prev.sampleContent || "") + "\n" + extractedSummary).trim(),
+          sampleFiles: [...(prev.sampleFiles || []), ...newItems]
+        };
+        // Also update report.sampleConfig
+        setReport(r => ({ ...r, sampleConfig: newConfig }));
+        return newConfig;
+      });
+
+      alert(`✅ 한글(HWP/HWPX) 및 서식 문서 ${successCount}개가 성공적으로 분석/업로드되었습니다!\n\n추출된 본문 서식이 AI 보고서 자동 작성 엔진에 기본 참조 양식으로 설정되었습니다.`);
+    } catch (err) {
+      console.error("Error processing document files:", err);
+      alert("문서 분석 중 오류가 발생했습니다. 파일 형식을 확인 후 다시 시도해 주세요.");
+    } finally {
+      setIsProcessingSampleFiles(false);
+    }
+  };
+
   // File drag & drop triggers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -701,14 +722,36 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processImageFiles(e.dataTransfer.files);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const allFiles = Array.from(e.dataTransfer.files) as File[];
+      const imgFiles = allFiles.filter(f => f.type.startsWith("image/") || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(f.name.split('.').pop()?.toLowerCase() || ''));
+      const docFiles = allFiles.filter(f => !f.type.startsWith("image/") && !['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(f.name.split('.').pop()?.toLowerCase() || ''));
+
+      if (imgFiles.length > 0) {
+        const dt = new DataTransfer();
+        imgFiles.forEach(f => dt.items.add(f));
+        processImageFiles(dt.files);
+      }
+      if (docFiles.length > 0) {
+        processDocumentFiles(docFiles);
+      }
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processImageFiles(e.target.files);
+    if (e.target.files && e.target.files.length > 0) {
+      const allFiles = Array.from(e.target.files) as File[];
+      const imgFiles = allFiles.filter(f => f.type.startsWith("image/") || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(f.name.split('.').pop()?.toLowerCase() || ''));
+      const docFiles = allFiles.filter(f => !f.type.startsWith("image/") && !['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(f.name.split('.').pop()?.toLowerCase() || ''));
+
+      if (imgFiles.length > 0) {
+        const dt = new DataTransfer();
+        imgFiles.forEach(f => dt.items.add(f));
+        processImageFiles(dt.files);
+      }
+      if (docFiles.length > 0) {
+        processDocumentFiles(docFiles);
+      }
     }
   };
 
@@ -755,8 +798,8 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
       setLoading(true);
       setLoadingStep("현장 사진 및 기본 정보 공학적 모델링 중...");
 
-      // Short delay for visual polish
-      await new Promise(resolve => setTimeout(resolve, 600));
+      // Short delay for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 400));
       setLoadingStep("건설공사 안전관리 업무수행 지침 기준 적용 중...");
 
       // Prune heavy base64 fields before sending payload to server API to avoid 413 / 404 Payload Too Large errors
@@ -787,11 +830,16 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
 
       let aiData: any = null;
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000); // Strict 4-second API timeout
+
         const response = await fetch("/api/generate-report-text", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(lightweightReport)
+          body: JSON.stringify(lightweightReport),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           aiData = await response.json();
@@ -800,7 +848,7 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
           aiData = generateReportFallback(report);
         }
       } catch (fetchErr) {
-        console.warn("Server API fetch exception. Executing client-side fallback engine:", fetchErr);
+        console.warn("Server API fetch timeout/exception. Executing fast client-side fallback engine:", fetchErr);
         aiData = generateReportFallback(report);
       }
 
@@ -809,6 +857,7 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
       }
 
       setLoadingStep("정밀 건설안전 보고서 규격 텍스트 완결 중...");
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       setReport(prev => ({
         ...prev,
@@ -832,6 +881,19 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
       setLoading(false);
       setLoadingStep("");
     }
+  };
+
+  // Fast manual force complete in case user wants instant result
+  const handleForceCompleteAI = () => {
+    const fallbackData = generateReportFallback(report);
+    setReport(prev => ({
+      ...prev,
+      ...fallbackData,
+      aiGenerated: true,
+      updatedAt: Date.now()
+    }));
+    setLoading(false);
+    setLoadingStep("");
   };
 
   // Save changes to Firestore
@@ -1254,16 +1316,16 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
                 type="file"
                 id="report-photo-picker"
                 multiple
-                accept="image/*"
+                accept="image/*,.pdf,.hwp,.hwpx,.doc,.docx,.txt,.md"
                 onChange={handleFileChange}
                 className="hidden"
               />
               <label htmlFor="report-photo-picker" className="cursor-pointer block w-full">
                 <ImageIcon className="w-8 h-8 text-slate-400 mx-auto mb-2 animate-bounce" />
                 <p className="text-xs font-bold text-slate-700">
-                  [{uploadMainCategory}{uploadSubCategory ? ` > ${uploadSubCategory}` : ""}] 등록용 사진 드래그앤드롭
+                  [{uploadMainCategory}{uploadSubCategory ? ` > ${uploadSubCategory}` : ""}] 사진 및 한글(HWP/HWPX)·문서 드래그앤드롭
                 </p>
-                <p className="text-[10px] text-slate-400 mt-1">또는 클릭하여 내 PC의 점검 사진 파일들을 다중 선택하세요.</p>
+                <p className="text-[10px] text-slate-400 mt-1">클릭하거나 드래그하여 점검 사진 및 한글(HWP/HWPX)/PDF/Word 문서를 등록하세요.</p>
               </label>
             </div>
 
@@ -1299,7 +1361,7 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
                   type="file"
                   id="report-photo-picker-btn"
                   multiple
-                  accept="image/*"
+                  accept="image/*,.pdf,.hwp,.hwpx,.doc,.docx,.txt,.md"
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -1565,17 +1627,38 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
 
         {/* Loading overlay */}
         {loading && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-white">
-            <div className="bg-slate-950 p-8 rounded-2xl border border-slate-800 text-center shadow-2xl max-w-sm w-full mx-4">
-              <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-              <h3 className="text-lg font-bold">건설 안전 AI 집필 가동 중</h3>
-              <p className="text-xs text-slate-400 mt-2 font-mono bg-slate-900 py-2 px-4 rounded border border-slate-800">
-                {loadingStep}
+          <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white p-4">
+            <div className="bg-slate-950 p-8 rounded-2xl border border-slate-800 text-center shadow-2xl max-w-md w-full mx-4 space-y-4">
+              <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto" />
+              <h3 className="text-lg font-bold text-white">건설 안전 AI 집필 가동 중</h3>
+              <p className="text-xs text-slate-300 font-mono bg-slate-900 py-2.5 px-4 rounded-xl border border-slate-800 leading-relaxed">
+                {loadingStep || "건설공사 안전관리 업무수행 지침 기준 적용 중..."}
               </p>
-              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-4">
-                <div className="bg-blue-500 h-full w-2/3 rounded-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-blue-500 to-indigo-400"></div>
+              <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div className="bg-blue-500 h-full w-3/4 rounded-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500"></div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-4">잠시만 기다려 주십시오. 최대 수십 초가 소요될 수 있습니다.</p>
+              <p className="text-[11px] text-slate-400">네트워크 및 이미지 정밀 분석으로 인해 수 초 정도 소요될 수 있습니다.</p>
+              
+              <div className="pt-2 flex justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleForceCompleteAI}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>즉시 작성 완료 (초고속 집필)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoading(false);
+                    setLoadingStep("");
+                  }}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors cursor-pointer"
+                >
+                  취소
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1667,11 +1750,11 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
                       ) : (
                         <Upload className="w-4 h-4 text-white" />
                       )}
-                      <span>샘플 대용량 업로드 (PDF, JPG, PNG, HWP, DOC, TXT)</span>
+                      <span>샘플 대용량 업로드 (PDF, JPG, PNG, HWP, HWPX, DOC, TXT)</span>
                       <input
                         type="file"
                         multiple
-                        accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.bmp,.hwp,.doc,.docx,.txt,.md"
+                        accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.bmp,.hwp,.hwpx,.doc,.docx,.txt,.md"
                         onChange={handleSampleMultiFileUpload}
                         disabled={isProcessingSampleFiles}
                         className="hidden"

@@ -1,47 +1,79 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { SafetyReport, PhotoItem } from "../types";
-import { Printer, Download, MapPin, Building, Shield, FileText, ArrowLeft } from "lucide-react";
+import { Printer, Download, MapPin, Building, Shield, FileText, ArrowLeft, FileCode2, Copy, Check, FileSpreadsheet, Presentation, Sparkles, Award, Bot, MessageSquare } from "lucide-react";
+import { ReportViewerChapters } from "./ReportViewerChapters";
+import ReportChatEditor from "./ReportChatEditor";
 
 interface ReportViewerProps {
   report: SafetyReport;
   onBack: () => void;
+  onUpdateReport?: (updatedReport: SafetyReport) => void;
 }
 
-export default function ReportViewer({ report, onBack }: ReportViewerProps) {
+export default function ReportViewer({ report, onBack, onUpdateReport }: ReportViewerProps) {
   const printAreaRef = useRef<HTMLDivElement>(null);
+  const [activeReport, setActiveReport] = useState<SafetyReport>(report);
+  const [showChatEditor, setShowChatEditor] = useState(false);
 
-  // Dynamic font family determination
-  const getFontFamily = (styleName?: string) => {
-    if (!styleName) return "'Malgun Gothic', '맑은 고딕', 'Batang', '바탕', sans-serif";
-    if (styleName.includes("휴먼명조") || styleName.includes("명조")) {
-      return "'Human Myungjo', '휴먼명조', 'Batang', '바탕체', serif";
+  useEffect(() => {
+    setActiveReport(report);
+  }, [report]);
+
+  const handleUpdateActiveReport = (updated: SafetyReport) => {
+    setActiveReport(updated);
+    if (onUpdateReport) {
+      onUpdateReport(updated);
     }
-    if (styleName.includes("바탕체") || styleName.includes("바탕")) {
-      return "'Batang', '바탕체', serif";
-    }
-    if (styleName.includes("나눔고딕")) {
-      return "'Nanum Gothic', '나눔고딕', sans-serif";
-    }
-    if (styleName.includes("돋움")) {
-      return "'Dotum', '돋움체', sans-serif";
-    }
-    return "'Malgun Gothic', '맑은 고딕', sans-serif";
   };
 
-  const selectedFontCss = getFontFamily(report.sampleConfig?.fontStyle);
+  // Dynamic font family determination - Uniform Batang / Myeongjo for all documents
+  const getFontFamily = (styleName?: string) => {
+    return "'Batang', '바탕체', 'Nanum Myeongjo', '나눔명조', 'Noto Serif KR', serif";
+  };
 
-  // Default values matching sample images if not provided
-  const projectName = report.projectName || "남강 정암지구 하천환경정비사업 중";
-  const targetName = report.workTypes || "천공기 SCW(덕곡배수문)";
-  const checkDegree = report.checkDegree || "1차";
-  const contractor = report.contractor || "우석종합건설(주)";
-  const client = report.client || "기후에너지환경부 낙동강유역환경청";
-  const supervisor = report.supervisor || "(주)유신";
-  const companyName = report.companyName || "(주)정진이앤씨";
-  const leadEngineer = report.leadEngineer || "박경포";
-  const checkDate = report.checkDate || "2026년 04월 17일";
-  const projectLocation = report.projectLocation || "경남 함안군, 의령군, 진주시, 사천시, 하동군, 산청군, 함양군 일원";
-  const yearMonth = "2026. 04";
+  const selectedFontCss = getFontFamily(activeReport.sampleConfig?.fontStyle);
+
+  // Helper to format date strings into Korean format "2026년 08월 13일"
+  const formatKoreanDate = (dateStr?: string) => {
+    if (!dateStr) return "2026년 05월 12일";
+    const str = dateStr.trim();
+    if (str.includes("년") && str.includes("월")) return str;
+    const match = str.match(/^(\d{4})[-.\/]?(\d{1,2})[-.\/]?(\d{1,2})/);
+    if (match) {
+      const y = match[1];
+      const m = match[2].padStart(2, "0");
+      const d = match[3].padStart(2, "0");
+      return `${y}년 ${m}월 ${d}일`;
+    }
+    return str;
+  };
+
+  const formatYearMonth = (dateStr?: string) => {
+    if (!dateStr) return "2026년 04월";
+    const str = dateStr.trim();
+    const match = str.match(/^(\d{4})[-.\/]?(\d{1,2})/);
+    if (match) {
+      return `${match[1]}년 ${match[2].padStart(2, "0")}월`;
+    }
+    if (str.includes("년") && str.includes("월")) {
+      return str.split("월")[0] + "월";
+    }
+    return "2026년 04월";
+  };
+
+  // Default values matching sample PDF exactly if not provided
+  const projectName = activeReport.projectName || "늑용~유치간 지방도 4차로 확포장공사";
+  const targetName = activeReport.workTypes || "옹벽";
+  const checkDegree = activeReport.checkDegree || "1차";
+  const contractor = activeReport.contractor || "보광종합건설(주)";
+  const client = activeReport.client || "전라남도";
+  const supervisor = activeReport.supervisor || "㈜동아기술공사, ㈜삼안";
+  const companyName = activeReport.companyName || "(주)정진이앤씨";
+  const leadEngineer = activeReport.leadEngineer || "박경포";
+  const rawCheckDate = activeReport.checkDate || "2026년 06월 10일";
+  const checkDate = formatKoreanDate(rawCheckDate);
+  const yearMonth = "2026. 06";
+  const projectLocation = activeReport.projectLocation || "전남 장흥군 유치면 늑용리 산32-24 ~ 용문리788";
 
   // Check active user status
   const storedUser = localStorage.getItem("active_user");
@@ -58,12 +90,127 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
   const encodedLocation = encodeURIComponent(projectLocation);
   const mapIframeUrl = `https://maps.google.com/maps?q=${encodedLocation}&t=&z=14&ie=UTF8&iwloc=&output=embed`;
 
+  const [copySuccess, setCopySuccess] = useState(false);
+
   const handlePrint = () => {
     if (currentUserStatus === "정회원 승인대기") {
       alert("⚠️ 무료 체험 수량을 소진하여 프린터 출력 및 PDF 저장이 제한됩니다.\n정회원 승인 후 출력이 가능합니다.");
       return;
     }
     window.print();
+  };
+
+  // 1. HWPX (한글 표준 XML 문서) File Export
+  const handleHwpxDownload = () => {
+    if (currentUserStatus === "정회원 승인대기") {
+      alert("⚠️ 무료 체험 수량을 소진하여 한글(HWPX) 파일 다운로드가 제한됩니다.");
+      return;
+    }
+    const cleanProjectName = (projectName || "정기안전점검").replace(/[\/\\:*?"<>|]/g, "_");
+    const filename = `${cleanProjectName}_정기안전점검보고서.hwpx`;
+    const htmlContent = printAreaRef.current?.innerHTML || "";
+
+    const hwpxContent = `\uFEFF<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ko" lang="ko">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="generator" content="Hancom Office / HWPX Exporter" />
+  <title>${projectName}</title>
+  <style type="text/css">
+    @page { size: 210mm 297mm; margin: 15mm; }
+    body { font-family: 'Batang', '바탕', '바탕체', 'Nanum Myeongjo', serif; font-size: 10pt; line-height: 1.6; color: #000000; word-break: keep-all; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 12px; page-break-inside: avoid; border: 1px solid #000; }
+    th, td { border: 1px solid #000000; padding: 6px 8px; font-size: 9.5pt; text-align: center; vertical-align: middle; }
+    th { background-color: #f2f4f8; font-weight: bold; }
+    .page-container { page-break-after: always; width: 100%; min-height: 270mm; box-sizing: border-box; background: #ffffff; }
+    .page-break { page-break-after: always; }
+    img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  ${htmlContent}
+</body>
+</html>`;
+
+    const blob = new Blob([hwpxContent], { type: "application/vnd.hancom.hwpx;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 2. HWP (아래아한글 문서) File Export
+  const handleHwpDownload = () => {
+    if (currentUserStatus === "정회원 승인대기") {
+      alert("⚠️ 무료 체험 수량을 소진하여 한글(HWP) 파일 다운로드가 제한됩니다.");
+      return;
+    }
+    const cleanProjectName = (projectName || "정기안전점검").replace(/[\/\\:*?"<>|]/g, "_");
+    const filename = `${cleanProjectName}_정기안전점검보고서.hwp`;
+    const htmlContent = printAreaRef.current?.innerHTML || "";
+
+    const hwpContent = `\uFEFF<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="Generator" content="Hancom Office HWP Document">
+  <title>${projectName}</title>
+  <style>
+    @page { size: A4 portrait; margin: 15mm 15mm 15mm 15mm; }
+    body { font-family: 'Batang', '바탕체', 'Nanum Myeongjo', '나눔명조', serif; font-size: 10pt; line-height: 1.6; color: #000000; word-break: keep-all; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; border: 1px solid #000000; }
+    th, td { border: 1px solid #000000; padding: 6px 8px; font-size: 9.5pt; text-align: center; vertical-align: middle; }
+    th { background-color: #F0F0F0; font-weight: bold; }
+    .page-container { page-break-after: always; width: 100%; margin: 0; padding: 0; }
+    img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  ${htmlContent}
+</body>
+</html>`;
+
+    const blob = new Blob([hwpContent], { type: "application/x-hwp;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 3. Copy HWP Formatted HTML to Clipboard for Direct Ctrl+V into 아래아한글
+  const handleHwpClipboardCopy = async () => {
+    if (currentUserStatus === "정회원 승인대기") {
+      alert("⚠️ 무료 체험 수량을 소진하여 복사 기능이 제한됩니다.");
+      return;
+    }
+    const htmlContent = printAreaRef.current?.innerHTML || "";
+    try {
+      const blobHtml = new Blob([htmlContent], { type: "text/html" });
+      const blobText = new Blob([printAreaRef.current?.innerText || ""], { type: "text/plain" });
+      const clipboardItem = new ClipboardItem({
+        "text/html": blobHtml,
+        "text/plain": blobText
+      });
+      await navigator.clipboard.write([clipboardItem]);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 3000);
+    } catch (err) {
+      const listener = (e: ClipboardEvent) => {
+        e.clipboardData?.setData("text/html", htmlContent);
+        e.clipboardData?.setData("text/plain", printAreaRef.current?.innerText || "");
+        e.preventDefault();
+      };
+      document.addEventListener("copy", listener);
+      document.execCommand("copy");
+      document.removeEventListener("copy", listener);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 3000);
+    }
   };
 
   const handleWordDownload = () => {
@@ -103,25 +250,419 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
     document.body.removeChild(link);
   };
 
-  // Reusable Red Stamp Seals
-  const RedStamp = ({ text = "박경포", size = "normal" }: { text?: string; size?: "small" | "normal" | "large" }) => (
-    <span className={`inline-flex items-center justify-center border-2 border-red-600 text-red-600 font-extrabold rounded-full ${
-      size === "small" ? "w-6 h-6 text-[9px]" : size === "large" ? "w-14 h-14 text-xs" : "w-8 h-8 text-[10px]"
-    }`} style={{ fontFamily: "'Batang', 'Gungsuh', serif", writingMode: "vertical-rl" }}>
-      {text}
-    </span>
-  );
+  // 4. Excel (엑셀 통합 시트) File Export
+  const handleExcelDownload = () => {
+    if (currentUserStatus === "정회원 승인대기") {
+      alert("⚠️ 무료 체험 수량을 소진하여 엑셀 다운로드가 제한됩니다.");
+      return;
+    }
+    const cleanProjectName = (projectName || "정기안전점검").replace(/[\/\\:*?"<>|]/g, "_");
+    const filename = `${cleanProjectName}_정기안전점검보고서.xlsx`;
+    const htmlContent = printAreaRef.current?.innerHTML || "";
 
-  const SquareOfficialSeal = ({ name = "정진이앤씨", title = "대표이사" }) => (
-    <div className="w-16 h-16 border-2 border-red-600 p-0.5 inline-block text-center text-red-600 font-extrabold select-none" style={{ fontFamily: "'Batang', 'Gungsuh', serif" }}>
-      <div className="border border-red-500 w-full h-full flex flex-col justify-center items-center text-[10px] leading-tight font-bold">
-        <span>{(name.slice(0,2))}</span>
-        <span>{(name.slice(2,4) || "이앤")}</span>
-        <span>{title}</span>
-        <span>직인</span>
-      </div>
+    const excelContent = `\uFEFF<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="ProgId" content="Excel.Sheet">
+  <meta name="Generator" content="Microsoft Excel / Hancom Hanshow">
+  <!--[if gte mso 9]>
+  <xml>
+    <x:ExcelWorkbook>
+      <x:ExcelWorksheets>
+        <x:ExcelWorksheet>
+          <x:Name>안전점검보고서</x:Name>
+          <x:WorksheetOptions>
+            <x:DisplayGridlines/>
+          </x:WorksheetOptions>
+        </x:ExcelWorksheet>
+      </x:ExcelWorksheets>
+    </x:ExcelWorkbook>
+  </xml>
+  <![endif]-->
+  <style>
+    body { font-family: '맑은 고딕', 'Malgun Gothic', 'Batang', serif; font-size: 10pt; }
+    table { border-collapse: collapse; width: 100%; border: 1px solid #000000; margin-bottom: 20px; }
+    th, td { border: 1px solid #000000; padding: 6px 8px; text-align: center; vertical-align: middle; mso-number-format:"\\@"; }
+    th { background-color: #EFEFEF; font-weight: bold; }
+    .page-container { margin-bottom: 30px; page-break-after: always; }
+  </style>
+</head>
+<body>
+  ${htmlContent}
+</body>
+</html>`;
+
+    const blob = new Blob([excelContent], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 5. PowerPoint (파워포인트 발표 슬라이드) File Export
+  const handlePptDownload = () => {
+    if (currentUserStatus === "정회원 승인대기") {
+      alert("⚠️ 무료 체험 수량을 소진하여 파워포인트 다운로드가 제한됩니다.");
+      return;
+    }
+    const cleanProjectName = (projectName || "정기안전점검").replace(/[\/\\:*?"<>|]/g, "_");
+    const filename = `${cleanProjectName}_정기안전점검보고서.pptx`;
+    const htmlContent = printAreaRef.current?.innerHTML || "";
+
+    const pptContent = `\uFEFF<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:p="urn:schemas-microsoft-com:office:powerpoint" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="ProgId" content="PowerPoint.Slide">
+  <meta name="Generator" content="Microsoft PowerPoint / Hancom Hanshow">
+  <style>
+    body { font-family: '맑은 고딕', 'Malgun Gothic', sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }
+    .page-container { background: #ffffff; border: 2px solid #cbd5e1; border-radius: 8px; padding: 30px; margin-bottom: 40px; page-break-after: always; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    table { border-collapse: collapse; width: 100%; border: 1px solid #000; margin: 15px 0; }
+    th, td { border: 1px solid #000; padding: 8px; font-size: 10pt; text-align: center; }
+    th { background-color: #f1f5f9; font-weight: bold; }
+  </style>
+</head>
+<body>
+  ${htmlContent}
+</body>
+</html>`;
+
+    const blob = new Blob([pptContent], { type: "application/vnd.ms-powerpoint;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Jeollanam-do Provincial Emblem Background for Certificate
+  const JeonnamProvinceEmblemBg = () => (
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] pointer-events-none z-0 opacity-85 mix-blend-multiply flex items-center justify-center">
+      <svg viewBox="0 0 200 200" className="w-full h-full">
+        {/* Bright Yellow background square */}
+        <rect x="0" y="0" width="200" height="200" fill="#facc15" />
+        
+        {/* Red sun circle */}
+        <circle cx="100" cy="58" r="28" fill="#dc2626" />
+
+        {/* Green leaf / wave curve */}
+        <path
+          d="M 10 100 C 50 60 130 60 185 80 C 188 100 170 120 130 95 C 80 70 30 110 10 100 Z"
+          fill="#15803d"
+        />
+
+        {/* Blue wave / S-curve */}
+        <path
+          d="M 15 135 C 30 85 110 95 135 135 C 165 180 190 145 185 125 C 170 165 135 175 105 145 C 65 105 20 120 15 135 Z"
+          fill="#1d4ed8"
+        />
+      </svg>
     </div>
   );
+
+  // Individual Engineer Personal Seals with distinct fonts, shapes, and styles matching original sample Image 5
+  const EngineerPersonalSeal = ({ name }: { name: string }) => {
+    const cleanName = name.replace(/\s+/g, "");
+
+    // 1. 이재근 - Circular seal, Seal Script / 인장체, 4 characters (이재근인)
+    if (cleanName === "이재근") {
+      return (
+        <svg width="32" height="32" viewBox="0 0 50 50" className="inline-block select-none transform -rotate-2">
+          <circle cx="25" cy="25" r="22.5" fill="none" stroke="#B80F0A" strokeWidth="2.8" />
+          <circle cx="25" cy="25" r="20" fill="none" stroke="#B80F0A" strokeWidth="0.8" />
+          <g fill="#B80F0A" fontFamily="'Gungsuh', 'Batang', serif" fontWeight="900" fontSize="14" textAnchor="middle" dominantBaseline="central">
+            <text x="33" y="17">이</text>
+            <text x="33" y="33">재</text>
+            <text x="17" y="17">근</text>
+            <text x="17" y="33">인</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // 2. 정경수 - Vertical Oval seal, Calligraphic/Handwriting font, right tilt (+3deg)
+    if (cleanName === "정경수") {
+      return (
+        <svg width="25" height="38" viewBox="0 0 36 52" className="inline-block select-none transform rotate-3">
+          <ellipse cx="18" cy="26" rx="16" ry="24" fill="none" stroke="#c2410c" strokeWidth="2.2" />
+          <g fill="#c2410c" fontFamily="'Gungsuh', 'Brush Script MT', cursive, serif" fontWeight="800" fontSize="13" textAnchor="middle" dominantBaseline="central">
+            <text x="18" y="13">정</text>
+            <text x="18" y="26">경</text>
+            <text x="18" y="39">수</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // 3. 김규장 - Vertical Oval seal, Seal Script font, left tilt (-2deg)
+    if (cleanName === "김규장") {
+      return (
+        <svg width="25" height="38" viewBox="0 0 36 52" className="inline-block select-none transform -rotate-2">
+          <ellipse cx="18" cy="26" rx="16.5" ry="24.5" fill="none" stroke="#b91c1c" strokeWidth="2.5" />
+          <g fill="#b91c1c" fontFamily="'Batang', 'Gungsuh', serif" fontWeight="900" fontSize="14" textAnchor="middle" dominantBaseline="central">
+            <text x="18" y="13">김</text>
+            <text x="18" y="26">규</text>
+            <text x="18" y="39">장</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // 4. 이민행 - Vertical Oval seal, Handwriting script, right tilt (+2deg)
+    if (cleanName === "이민행") {
+      return (
+        <svg width="25" height="38" viewBox="0 0 36 52" className="inline-block select-none transform rotate-2">
+          <ellipse cx="18" cy="26" rx="15" ry="23" fill="none" stroke="#dc2626" strokeWidth="2" />
+          <g fill="#dc2626" fontFamily="'GungsuhChe', 'Gungsuh', serif" fontStyle="italic" fontWeight="800" fontSize="13.5" textAnchor="middle" dominantBaseline="central">
+            <text x="18" y="13">이</text>
+            <text x="18" y="26">민</text>
+            <text x="18" y="39">행</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // 5. 이완옥 - Vertical Oval seal, Calligraphic brush font, left tilt (-3deg)
+    if (cleanName === "이완옥") {
+      return (
+        <svg width="25" height="38" viewBox="0 0 36 52" className="inline-block select-none transform -rotate-3">
+          <ellipse cx="18" cy="26" rx="15.5" ry="23.5" fill="none" stroke="#b91c1c" strokeWidth="2.1" />
+          <g fill="#b91c1c" fontFamily="'Batang', 'Gungsuh', serif" fontWeight="800" fontSize="13" textAnchor="middle" dominantBaseline="central">
+            <text x="18" y="13">이</text>
+            <text x="18" y="26">완</text>
+            <text x="18" y="39">옥</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // 6. 조을현 - Vertical Oval seal, tilted handwritten ink seal (-4deg)
+    if (cleanName === "조을현") {
+      return (
+        <svg width="25" height="38" viewBox="0 0 36 52" className="inline-block select-none transform -rotate-4">
+          <ellipse cx="18" cy="26" rx="16" ry="24" fill="none" stroke="#991b1b" strokeWidth="2.3" strokeDasharray="30, 0.5" />
+          <g fill="#991b1b" fontFamily="'Gungsuh', serif" fontWeight="900" fontSize="13.5" textAnchor="middle" dominantBaseline="central">
+            <text x="18" y="13">조</text>
+            <text x="18" y="26">을</text>
+            <text x="18" y="39">현</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // 7. 김창대 - Vertical Oval seal, lighter red ink opacity (0.85), right tilt (+2deg)
+    if (cleanName === "김창대") {
+      return (
+        <svg width="25" height="38" viewBox="0 0 36 52" className="inline-block select-none transform rotate-2 opacity-90">
+          <ellipse cx="18" cy="26" rx="15" ry="23" fill="none" stroke="#ef4444" strokeWidth="1.8" />
+          <g fill="#ef4444" fontFamily="'GungsuhChe', serif" fontWeight="800" fontSize="13" textAnchor="middle" dominantBaseline="central">
+            <text x="18" y="13">김</text>
+            <text x="18" y="26">창</text>
+            <text x="18" y="39">대</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // 8. 정남오 - Vertical Oval seal, handwritten ink, left tilt (-2deg)
+    if (cleanName === "정남오") {
+      return (
+        <svg width="25" height="38" viewBox="0 0 36 52" className="inline-block select-none transform -rotate-2">
+          <ellipse cx="18" cy="26" rx="15.5" ry="23.5" fill="none" stroke="#dc2626" strokeWidth="2.1" />
+          <g fill="#dc2626" fontFamily="'Gungsuh', serif" fontStyle="italic" fontWeight="800" fontSize="13" textAnchor="middle" dominantBaseline="central">
+            <text x="18" y="13">정</text>
+            <text x="18" y="26">남</text>
+            <text x="18" y="39">오</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // 9. 정남래 - Vertical Oval seal, handwritten ink, right tilt (+3deg)
+    if (cleanName === "정남래") {
+      return (
+        <svg width="25" height="38" viewBox="0 0 36 52" className="inline-block select-none transform rotate-3">
+          <ellipse cx="18" cy="26" rx="16" ry="24" fill="none" stroke="#b91c1c" strokeWidth="2.2" />
+          <g fill="#b91c1c" fontFamily="'Batang', serif" fontWeight="900" fontSize="13.5" textAnchor="middle" dominantBaseline="central">
+            <text x="18" y="13">정</text>
+            <text x="18" y="26">남</text>
+            <text x="18" y="39">래</text>
+          </g>
+        </svg>
+      );
+    }
+
+    // Fallback
+    return <RedStamp text={cleanName} size="small" />;
+  };
+
+  // Authentic JEC Corporate Logo as seen in Sample Image 1
+  const JecLogoSymbol = () => (
+    <div className="flex items-center justify-center select-none py-2">
+      <svg width="46" height="34" viewBox="0 0 100 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Red J */}
+        <path d="M 20 10 L 38 10 L 38 42 C 38 56 24 60 12 55 C 8 53 6 48 8 44 C 10 40 15 40 18 43 C 21 46 26 47 28 44 C 30 42 30 38 30 34 L 30 10 Z" fill="#DC2626" />
+        {/* Dark Grey E */}
+        <path d="M 44 14 L 68 14 L 68 22 L 52 22 L 52 30 L 66 30 L 66 38 L 52 38 L 52 48 L 70 48 L 70 56 L 44 56 Z" fill="#4B5563" />
+        {/* Medium Grey C */}
+        <path d="M 96 20 C 92 14 84 12 76 16 C 68 22 68 44 76 50 C 84 54 92 52 96 46 L 100 52 C 92 60 80 61 70 54 C 58 46 58 20 70 12 C 80 5 94 6 100 14 Z" fill="#6B7280" />
+      </svg>
+    </div>
+  );
+
+  // Reusable Red Stamp Seals with Authentic Seal Script (전서체/인장체)
+  const RedStamp = ({ text = "박경포", size = "normal" }: { text?: string; size?: "small" | "normal" | "large" }) => {
+    const pixelSize = size === "small" ? 28 : size === "large" ? 48 : 36;
+    const cleanText = text.replace(/\s+/g, "");
+    const stampText = cleanText.length <= 3 ? cleanText + "인" : cleanText;
+
+    return (
+      <svg
+        width={pixelSize}
+        height={pixelSize}
+        viewBox="0 0 50 50"
+        className="inline-block select-none align-middle"
+        style={{ mixBlendMode: "multiply", filter: "drop-shadow(0px 0.5px 0.5px rgba(184,15,10,0.2))" }}
+      >
+        <circle cx="25" cy="25" r="22.5" fill="none" stroke="#B80F0A" strokeWidth="2.8" />
+        <circle cx="25" cy="25" r="20" fill="none" stroke="#B80F0A" strokeWidth="0.8" />
+        <g
+          fill="#B80F0A"
+          stroke="#B80F0A"
+          strokeWidth="0.6"
+          style={{
+            fontFamily: "'UnJangsu', 'GungsuhChe', 'Gungsuh', '궁서체', 'Hahmlet', 'Batang', serif",
+            fontWeight: 900,
+            textAnchor: "middle",
+            dominantBaseline: "central"
+          }}
+        >
+          {stampText.length === 4 ? (
+            <>
+              <text x="33" y="17" fontSize="15">{stampText[0]}</text>
+              <text x="33" y="33" fontSize="15">{stampText[1]}</text>
+              <text x="17" y="17" fontSize="15">{stampText[2]}</text>
+              <text x="17" y="33" fontSize="15">{stampText[3]}</text>
+            </>
+          ) : (
+            stampText.split("").map((char, i) => (
+              <text key={i} x="25" y={13 + i * (26 / Math.max(stampText.length - 1, 1))} fontSize="15">
+                {char}
+              </text>
+            ))
+          )}
+        </g>
+      </svg>
+    );
+  };
+
+  const SquareOfficialSeal = ({
+    name = "정진이앤씨",
+    title = "대표이사",
+    suffix = "지인",
+    size = 76,
+    imageUrl
+  }: {
+    name?: string;
+    title?: string;
+    suffix?: string;
+    size?: number;
+    imageUrl?: string;
+  }) => {
+    // If a custom seal image URL is provided, render it directly
+    if (imageUrl) {
+      return (
+        <img
+          src={imageUrl}
+          alt="직인"
+          style={{
+            width: size,
+            height: size,
+            mixBlendMode: "multiply",
+            objectFit: "contain",
+            transform: "rotate(-1deg)"
+          }}
+          className="inline-block select-none"
+        />
+      );
+    }
+
+    // Default: Authentic Jeonseo (구첩전체 - 9-fold geometric seal script) vector seal
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 100 100"
+        className="inline-block select-none pointer-events-none"
+        style={{
+          mixBlendMode: "multiply",
+          transform: "rotate(-1.5deg)",
+          filter: "drop-shadow(0px 0.5px 1px rgba(184,15,10,0.35))"
+        }}
+      >
+        {/* Outer thick red square frame */}
+        <rect x="3" y="3" width="94" height="94" rx="2" fill="none" stroke="#B80F0A" strokeWidth="4.5" />
+        {/* Inner thin red square frame */}
+        <rect x="8" y="8" width="84" height="84" rx="1" fill="none" stroke="#B80F0A" strokeWidth="1.2" />
+
+        {/* Real Jeonseo (구첩전체 - 9-fold seal script) Folded Geometric Red Stroke Paths */}
+        <g fill="none" stroke="#B80F0A" strokeWidth="2.8" strokeLinecap="square" strokeLinejoin="miter">
+          {/* COLUMN 1 (RIGHT): (주) 정 진 이 앤 씨 */}
+          {/* (주) */}
+          <path d="M 68 11 C 66 14 66 18 68 21" strokeWidth="2" />
+          <path d="M 88 11 C 90 14 90 18 88 21" strokeWidth="2" />
+          <path d="M 71 12 H 85 M 78 12 V 22 M 71 17 H 85 M 71 22 H 85" strokeWidth="1.8" />
+
+          {/* 정 */}
+          <path d="M 68 25 H 88 M 78 25 V 30 H 68 V 33 H 88 V 30 M 71 34 H 85 V 38 H 71 Z" />
+
+          {/* 진 */}
+          <path d="M 68 40 H 88 M 78 40 V 44 H 68 V 47 H 88 M 87 40 V 51 M 68 49 V 52 H 85" />
+
+          {/* 이 */}
+          <path d="M 68 54 H 79 V 63 H 68 Z M 86 54 V 63" />
+
+          {/* 앤 */}
+          <path d="M 68 65 H 74 V 73 H 68 Z M 78 65 V 74 M 86 65 V 74 M 78 69 H 86 M 68 73 H 86" />
+
+          {/* 씨 */}
+          <path d="M 68 76 H 75 V 82 H 68 V 87 H 75 M 77 76 H 84 V 82 H 77 V 87 H 84 M 88 76 V 87" />
+
+          {/* COLUMN 2 (MIDDLE): 대 표 이 사 */}
+          {/* 대 */}
+          <path d="M 40 12 H 56 V 26 H 40 V 19 H 56 M 52 11 V 28 M 58 11 V 28 M 52 19 H 58" />
+
+          {/* 표 */}
+          <path d="M 40 30 H 58 V 40 H 40 Z M 40 35 H 58 M 49 30 V 40 M 44 40 V 47 M 54 40 V 47 M 40 47 H 58" />
+
+          {/* 이 */}
+          <path d="M 40 49 H 52 V 65 H 40 Z M 58 49 V 65" />
+
+          {/* 사 */}
+          <path d="M 49 67 V 73 H 40 V 87 M 49 73 H 58 V 87 M 55 79 H 58" />
+
+          {/* COLUMN 3 (LEFT): 정 찬 욱 인 */}
+          {/* 정 */}
+          <path d="M 12 12 H 32 M 22 12 V 18 H 12 V 22 H 32 M 16 23 H 28 V 28 H 16 Z" />
+
+          {/* 찬 */}
+          <path d="M 12 30 H 32 M 22 30 V 36 M 12 36 H 22 M 22 34 H 32 V 43 M 12 41 H 32" />
+
+          {/* 욱 */}
+          <path d="M 12 45 H 32 M 22 45 V 59 M 12 51 H 32 M 12 59 H 32 V 65 H 12 Z" />
+
+          {/* 인 */}
+          <path d="M 12 67 H 22 V 87 H 12 Z M 32 67 V 87 M 12 80 H 32" />
+        </g>
+
+        {/* Subtle red ink stamp fill effect */}
+        <rect x="0" y="0" width="100" height="100" fill="#B80F0A" opacity="0.04" />
+      </svg>
+    );
+  };
 
   // Reusable Chapter Cover Page Component (도비라 - EXACT MATCH WITH ORIGINAL SAMPLE IMAGE 1)
   const ChapterCoverPage = ({
@@ -181,30 +722,56 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
     </div>
   );
 
-  // Common Header & Footer for Content Pages
-  const ContentHeader = ({ chapterTitle = "제1장 일반사항" }: { chapterTitle?: string }) => (
-    <div className="w-full mb-6">
-      <div className="flex justify-between items-end pb-1 text-xs font-bold text-black" style={{ fontFamily: "'Batang', serif" }}>
-        <span className="text-sm tracking-tight">{projectName} 중 정기안전점검 용역</span>
-        <span className="text-base font-extrabold tracking-widest">{chapterTitle}</span>
-      </div>
-      <div className="border-t-2 border-b border-black h-1"></div>
-    </div>
-  );
+  // Common Header & Footer for Content Pages (Alternating layout matching Korean standard safety report format)
+  const ContentHeader = ({ chapterTitle = "제1장 일반사항", pageNum }: { chapterTitle?: string; pageNum?: number }) => {
+    const isEven = pageNum !== undefined ? pageNum % 2 === 0 : false;
 
-  const ContentFooter = ({ pageNum = 2 }: { pageNum?: number }) => (
-    <div className="w-full mt-auto pt-4">
-      <div className="border-t border-b-2 border-black h-1 mb-2"></div>
-      <div className="flex justify-between items-center text-xs font-bold text-black" style={{ fontFamily: "'Batang', serif" }}>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 bg-red-600 text-white text-[8px] font-black flex items-center justify-center rounded-sm">JEC</div>
-          <span>{companyName}</span>
+    return (
+      <div className="w-full mb-6">
+        <div className="flex justify-between items-end pb-1 text-xs font-bold text-black" style={{ fontFamily: "'Batang', '나눔명조', serif" }}>
+          {pageNum === undefined ? (
+            <>
+              <span className="text-xs tracking-tight">{projectName} 중 정기안전점검 및 초기점검 용역</span>
+              <span className="text-xs font-extrabold tracking-widest">{chapterTitle}</span>
+            </>
+          ) : isEven ? (
+            <span className="text-xs tracking-tight">{projectName} 중 정기안전점검 및 초기점검 용역</span>
+          ) : (
+            <span className="text-xs font-extrabold tracking-widest ml-auto">{chapterTitle}</span>
+          )}
         </div>
-        <span className="font-mono text-sm font-bold">- {pageNum} -</span>
-        <span>{targetName} 정기안전점검({checkDegree}) 보고서</span>
+        <div className="border-t-2 border-b border-black h-1"></div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const ContentFooter = ({ pageNum = 2 }: { pageNum?: number }) => {
+    const isEven = pageNum % 2 === 0;
+
+    return (
+      <div className="w-full mt-auto pt-4">
+        <div className="border-t border-b-2 border-black h-1 mb-2"></div>
+        <div className="flex justify-between items-center text-xs font-bold text-black" style={{ fontFamily: "'Batang', '나눔명조', serif" }}>
+          <div className="w-1/3 flex items-center justify-start">
+            {isEven && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 bg-red-600 text-white text-[8px] font-black flex items-center justify-center rounded-sm">JEC</div>
+                <span>{companyName}</span>
+              </div>
+            )}
+          </div>
+          <div className="w-1/3 text-center">
+            <span className="font-mono text-sm font-bold">- {pageNum} -</span>
+          </div>
+          <div className="w-1/3 text-right">
+            {!isEven && (
+              <span>{targetName} 정기안전점검({checkDegree}) 보고서</span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-slate-100 min-h-screen pb-20">
@@ -224,31 +791,127 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
           </span>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* AI Conversational Report Editor Button */}
           <button
-            onClick={handlePrint}
-            className={`flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-lg transition-all shadow-md cursor-pointer ${
-              currentUserStatus === "정회원 승인대기" 
-                ? "bg-slate-300 text-slate-500 opacity-60 cursor-not-allowed" 
-                : "text-white bg-blue-700 hover:bg-blue-800 active:scale-95"
-            }`}
+            onClick={() => setShowChatEditor(prev => !prev)}
+            className="flex items-center gap-1.5 text-xs font-extrabold border px-3.5 py-2 rounded-lg transition-all shadow-md cursor-pointer bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white border-blue-400 active:scale-95 ring-2 ring-blue-400/40"
+            title="대화식(챗봇)으로 보고서 내용을 실시간 수정, 추가, 삭제합니다."
           >
-            <Printer className="w-4 h-4" />
-            PDF 인쇄 / 저장
+            <Bot className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>AI 대화형 보고서 수정 (챗봇)</span>
           </button>
+
+          {/* HWPX Download Button (1st Standard Badge) */}
+          <button
+            onClick={handleHwpxDownload}
+            className={`flex items-center gap-1.5 text-xs font-bold border px-3 py-2 rounded-lg transition-all shadow-sm cursor-pointer ${
+              currentUserStatus === "정회원 승인대기" 
+                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
+                : "text-blue-900 bg-blue-100 hover:bg-blue-200 border-blue-400 active:scale-95 ring-2 ring-blue-500/30"
+            }`}
+            title="아래아한글 1순위 작성 기준 HWPX 표준 문서로 다운로드합니다."
+          >
+            <FileText className="w-4 h-4 text-blue-700" />
+            <span>한글(.hwpx) [1순위 기준]</span>
+          </button>
+
+          {/* HWP Download Button */}
+          <button
+            onClick={handleHwpDownload}
+            className={`flex items-center gap-1.5 text-xs font-bold border px-3 py-2 rounded-lg transition-all shadow-sm cursor-pointer ${
+              currentUserStatus === "정회원 승인대기" 
+                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
+                : "text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 active:scale-95"
+            }`}
+            title="아래아한글 HWP 원본 문서로 다운로드합니다."
+          >
+            <FileCode2 className="w-4 h-4 text-emerald-700" />
+            <span>한글(.hwp) 다운로드</span>
+          </button>
+
+          {/* HWP Clipboard Copy Button */}
+          <button
+            onClick={handleHwpClipboardCopy}
+            className={`flex items-center gap-1.5 text-xs font-bold border px-3 py-2 rounded-lg transition-all shadow-sm cursor-pointer ${
+              currentUserStatus === "정회원 승인대기" 
+                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
+                : copySuccess
+                ? "text-emerald-900 bg-emerald-100 border-emerald-400" 
+                : "text-slate-800 bg-white hover:bg-slate-50 border-slate-300 active:scale-95"
+            }`}
+            title="아래아한글 프로그램에 바로 붙여넣기(Ctrl+V)할 수 있도록 원본 표 양식을 클립보드에 복사합니다."
+          >
+            {copySuccess ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span>한글 복사 완료! (Ctrl+V)</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 text-slate-600" />
+                <span>한글 붙여넣기용 복사</span>
+              </>
+            )}
+          </button>
+
+          {/* Excel Download Button */}
+          <button
+            onClick={handleExcelDownload}
+            className={`flex items-center gap-1.5 text-xs font-bold border px-3 py-2 rounded-lg transition-all shadow-sm cursor-pointer ${
+              currentUserStatus === "정회원 승인대기" 
+                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
+                : "text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 border-emerald-300 active:scale-95"
+            }`}
+            title="호환용 엑셀 통합 시트(.xlsx) 문서로 다운로드합니다."
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>엑셀(.xlsx)</span>
+          </button>
+
+          {/* PPT Download Button */}
+          <button
+            onClick={handlePptDownload}
+            className={`flex items-center gap-1.5 text-xs font-bold border px-3 py-2 rounded-lg transition-all shadow-sm cursor-pointer ${
+              currentUserStatus === "정회원 승인대기" 
+                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
+                : "text-amber-900 bg-amber-50 hover:bg-amber-100 border-amber-300 active:scale-95"
+            }`}
+            title="발표용 파워포인트 슬라이드(.pptx) 문서로 다운로드합니다."
+          >
+            <Presentation className="w-4 h-4 text-amber-600" />
+            <span>PPT(.pptx)</span>
+          </button>
+
+          {/* Word Download Button */}
           <button
             onClick={handleWordDownload}
-            className={`flex items-center gap-2 text-xs font-bold border px-4 py-2.5 rounded-lg transition-all shadow-sm cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-bold border px-3 py-2 rounded-lg transition-all shadow-sm cursor-pointer ${
               currentUserStatus === "정회원 승인대기" 
                 ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
                 : "text-slate-800 bg-white hover:bg-slate-50 border-slate-300 active:scale-95"
             }`}
           >
             <Download className="w-4 h-4 text-blue-600" />
-            Word(.doc) 다운로드
+            <span>Word(.doc)</span>
+          </button>
+
+          {/* PDF Print Button */}
+          <button
+            onClick={handlePrint}
+            className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg transition-all shadow-md cursor-pointer ${
+              currentUserStatus === "정회원 승인대기" 
+                ? "bg-slate-300 text-slate-500 opacity-60 cursor-not-allowed" 
+                : "text-white bg-blue-700 hover:bg-blue-800 active:scale-95"
+            }`}
+          >
+            <Printer className="w-4 h-4" />
+            <span>PDF 인쇄</span>
           </button>
         </div>
       </div>
+
+
 
       {/* Main Printable Document Sheet (Exact A4 Form Factor) */}
       <div 
@@ -258,11 +921,18 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
         style={{ fontFamily: selectedFontCss }}
       >
         <style dangerouslySetInnerHTML={{__html: `
+          @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+KR:wght@400;700;900&display=swap');
+          
+          #safety-report-print-area, 
+          #safety-report-print-area * {
+            font-family: 'Batang', '바탕체', 'Nanum Myeongjo', '나눔명조', 'Noto Serif KR', serif !important;
+          }
+
           @media print {
             body {
               background-color: white !important;
               color: black !important;
-              font-family: ${selectedFontCss};
+              font-family: 'Batang', '바탕체', 'Nanum Myeongjo', '나눔명조', 'Noto Serif KR', serif !important;
               margin: 0 !important;
               padding: 0 !important;
             }
@@ -316,257 +986,356 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
         `}} />
 
         {/* -------------------------------------------------------------------- */}
-        {/* PAGE 1: 표지 (COVER PAGE) - EXACT MATCH WITH IMAGE 2 */}
+        {/* PAGE 1: 측면 제본 도비라 표지 (VERTICAL SPINE COVER) - MATCHING SAMPLE PDF PAGE 1 */}
         {/* -------------------------------------------------------------------- */}
-        <div className="page-container font-serif text-center text-black flex flex-col justify-between">
-          <div className="pt-8">
-            {/* Double top line */}
-            <div className="border-t-2 border-b border-black py-6 px-4">
-              <h2 className="text-xl font-bold tracking-widest text-black mb-3 leading-relaxed">
-                {projectName}
+        <div className="page-container font-serif text-black flex flex-col items-center justify-between min-h-[1050px] py-16 relative overflow-hidden select-none bg-white">
+          {/* Top Section: Two vertical lines side-by-side */}
+          <div 
+            style={{ 
+              writingMode: 'vertical-rl', 
+              textOrientation: 'upright',
+              WebkitWritingMode: 'vertical-rl',
+              WebkitTextOrientation: 'upright',
+              fontFamily: "'Batang', 'Gungsuh', 'Myungjo', serif"
+            }} 
+            className="flex gap-3 items-start justify-center font-serif text-black pt-10"
+          >
+            <p className="text-lg md:text-xl font-bold tracking-[0.2em] leading-relaxed">
+              {projectName}
+            </p>
+            <p className="text-lg md:text-xl font-bold tracking-[0.2em] leading-relaxed">
+              중 {targetName}
+            </p>
+          </div>
+
+          {/* Middle Section: Main report title vertical */}
+          <div 
+            style={{ 
+              writingMode: 'vertical-rl', 
+              textOrientation: 'upright',
+              WebkitWritingMode: 'vertical-rl',
+              WebkitTextOrientation: 'upright',
+              fontFamily: "'Batang', 'Gungsuh', 'Myungjo', serif"
+            }} 
+            className="font-serif text-black my-auto flex items-center justify-center"
+          >
+            <p className="text-2xl md:text-[28px] font-black tracking-[0.3em] leading-loose">
+              {checkDegree} 정기안전점검 보고서
+            </p>
+          </div>
+
+          {/* Date Section: Vertical */}
+          <div 
+            style={{ 
+              writingMode: 'vertical-rl', 
+              textOrientation: 'upright',
+              WebkitWritingMode: 'vertical-rl',
+              WebkitTextOrientation: 'upright',
+              fontFamily: "'Batang', 'Gungsuh', 'Myungjo', serif"
+            }} 
+            className="font-serif text-black pb-10 flex items-center justify-center"
+          >
+            <p className="text-xl font-extrabold tracking-[0.25em]">
+              {yearMonth}
+            </p>
+          </div>
+
+          {/* Bottom Logo matching Sample PDF Page 1 */}
+          <div className="pb-4 flex items-center justify-center gap-2">
+            <JecLogoSymbol />
+            <span className="text-lg font-bold tracking-[0.2em]">{companyName}</span>
+          </div>
+        </div>
+
+        {/* -------------------------------------------------------------------- */}
+        {/* PAGE 2: 표지 (MAIN COVER PAGE WITH DOUBLE LINES) - MATCHING SAMPLE PDF PAGE 2 */}
+        {/* -------------------------------------------------------------------- */}
+        <div className="page-container font-serif text-center text-black flex flex-col justify-between py-12 relative min-h-[1050px]">
+          {/* Top Main Title Box with double border lines */}
+          <div className="pt-12 px-8 z-10">
+            <div className="border-t-2 border-b-2 border-black py-8 px-4">
+              <h2 className="text-xl md:text-2xl font-bold tracking-[0.2em] text-black mb-4 leading-relaxed">
+                {projectName} 중
               </h2>
-              <h1 className="text-2xl font-black tracking-widest text-black mb-3 leading-relaxed">
+              <h1 className="text-2xl md:text-3xl font-black tracking-[0.35em] text-black my-4 leading-relaxed">
                 【 {targetName} 】
               </h1>
-              <h3 className="text-xl font-extrabold tracking-[0.25em] text-black leading-relaxed">
+              <h3 className="text-xl md:text-2xl font-extrabold tracking-[0.25em] text-black leading-relaxed">
                 정 기 안 전 점 검 ( {checkDegree} ) 보 고 서
               </h3>
             </div>
           </div>
 
-          <div className="my-auto py-24 text-center">
-            <span className="text-xl font-bold tracking-[0.3em] text-black">
-              {yearMonth}
+          {/* Date Section */}
+          <div className="my-auto text-center px-14 z-10">
+            <span className="text-xl md:text-2xl font-bold tracking-[0.4em] text-black">
+              2026. 06
             </span>
           </div>
 
-          <div className="pb-8">
-            <p className="text-xl font-extrabold tracking-[0.3em] text-black mb-3">
+          {/* Bottom Company Logos */}
+          <div className="pb-8 z-10 space-y-3">
+            <div className="text-xl font-extrabold tracking-[0.3em] text-black">
               {contractor}
-            </p>
-            <div className="border-t border-black w-3/4 mx-auto mb-4"></div>
+            </div>
             <div className="flex justify-center items-center gap-2">
-              <div className="w-6 h-6 bg-red-600 text-white text-[10px] font-black flex items-center justify-center rounded-sm">JEC</div>
-              <span className="text-lg font-bold tracking-[0.2em] text-black">
+              <JecLogoSymbol />
+              <span className="text-lg font-bold tracking-[0.25em] text-black">
                 {companyName}
               </span>
             </div>
           </div>
         </div>
 
-
         {/* -------------------------------------------------------------------- */}
-        {/* PAGE 2: 【제 출 문】 - EXACT MATCH WITH IMAGE 3 */}
+        {/* PAGE 3: 【제 출 문】 - MATCHING PDF PAGE 3 */}
         {/* -------------------------------------------------------------------- */}
-        <div className="page-container font-serif text-black flex flex-col justify-between">
+        <div className="page-container font-serif text-black flex flex-col justify-between py-10">
           <div>
-            <div className="text-center my-8">
-              <h1 className="text-2xl font-black tracking-widest text-black inline-block px-4 py-1 border-b-2 border-black">
-                【 제 출 문 】
+            <div className="text-center my-6">
+              <h1 className="text-2xl font-black tracking-widest text-black inline-block px-2">
+                【제 출 문】
               </h1>
             </div>
 
-            <div className="mt-12 space-y-8 text-sm leading-loose">
-              <p className="text-base font-bold tracking-wider">
+            <div className="mt-14 space-y-8 text-base leading-loose">
+              <p className="font-bold tracking-wider text-lg">
                 {contractor} 대표이사 귀하
               </p>
 
-              <p className="indent-4 leading-relaxed text-slate-900 font-medium text-base pt-6">
-                귀 사에서 의뢰하신 <strong className="font-bold">&ldquo;{projectName}&rdquo;</strong> 의 {targetName} 정기안전점검 용역({checkDegree})에 대한 과업을 성실히 수행하고 그 결과를 본 보고서에 수록하여 부속자료와 함께 제출합니다.
+              <p className="indent-6 leading-loose text-slate-900 font-medium text-base pt-6 tracking-normal">
+                귀 사에서 의뢰하신 <strong className="font-bold">&ldquo;{projectName}&rdquo;</strong> 중 {targetName} 정기안전점검 용역({checkDegree})에 대한 과업을 성실히 수행하고 그 결과를 본 보고서에 수록하여 부속 자료와 함께 제출합니다.
               </p>
             </div>
           </div>
 
-          <div className="mb-12">
-            <p className="text-right text-sm font-bold tracking-widest mb-16">
-              {checkDate}
+          <div className="mb-10">
+            <p className="text-right text-base font-bold tracking-[0.25em] mb-20 pr-4">
+              2026년 06월 10일
             </p>
 
-            <div className="flex justify-end items-end">
-              <div className="text-right space-y-1 text-xs font-bold leading-relaxed pr-2">
-                <p><span className="inline-block w-16">주 소 :</span> 전라남도 진도군·읍 남문길 52(3층)</p>
-                <p><span className="inline-block w-16">상 호 :</span> ( 주 ) 정 진 이 앤 씨</p>
-                <p><span className="inline-block w-16">대 표 자 :</span> 정   찬   욱</p>
-              </div>
-              <div className="ml-3">
-                <SquareOfficialSeal name="정진이앤씨" title="대표이사" />
+            <div className="flex justify-end pr-6">
+              <div className="relative text-base font-bold leading-relaxed text-slate-900 font-serif">
+                <table className="border-collapse text-base">
+                  <tbody>
+                    <tr>
+                      <td className="w-[88px] font-black py-1 pr-2">
+                        <div className="flex justify-between w-full">
+                          <span>주</span>
+                          <span>소</span>
+                        </div>
+                      </td>
+                      <td className="font-black px-1 py-1">:</td>
+                      <td className="font-semibold whitespace-nowrap pl-3 py-1">전라남도 진도군·읍 남산로 130-48</td>
+                    </tr>
+                    <tr>
+                      <td className="w-[88px] font-black py-1 pr-2">
+                        <div className="flex justify-between w-full">
+                          <span>상</span>
+                          <span>호</span>
+                        </div>
+                      </td>
+                      <td className="font-black px-1 py-1">:</td>
+                      <td className="font-semibold whitespace-nowrap pl-3 py-1 tracking-[0.1em]">( 주 ) 정 진 이 앤 씨</td>
+                    </tr>
+                    <tr>
+                      <td className="w-[88px] font-black py-1 pr-2">
+                        <div className="flex justify-between w-full">
+                          <span>대</span>
+                          <span>표</span>
+                          <span>자</span>
+                        </div>
+                      </td>
+                      <td className="font-black px-1 py-1">:</td>
+                      <td className="relative font-bold whitespace-nowrap pl-3 py-1">
+                        <span className="tracking-[0.6em] mr-1">정&nbsp;&nbsp;&nbsp;&nbsp;찬&nbsp;&nbsp;&nbsp;&nbsp;욱</span>
+                        <span className="font-bold text-slate-900">(인)</span>
+
+                        {/* Red Stamp Seal overlaid directly on top of (인) */}
+                        <div className="absolute -right-7 -top-6 z-10 pointer-events-none">
+                          <SquareOfficialSeal name="정진이앤씨" title="대표이사" suffix="지인" size={78} imageUrl={activeReport.sampleConfig?.customSealUrl} />
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         </div>
 
-
         {/* -------------------------------------------------------------------- */}
-        {/* PAGE 3: 【진단기관 등록증】 - EXACT MATCH WITH IMAGE 4 */}
+        {/* PAGE 4: 【진단기관 등록증】 - MATCHING PDF PAGE 4 */}
         {/* -------------------------------------------------------------------- */}
         <div className="page-container font-serif text-black flex flex-col justify-between">
-          <div>
-            <div className="text-center mt-4 mb-2">
-              <h1 className="text-2xl font-black tracking-widest text-black">
-                【진단기관 등록증】
-              </h1>
-            </div>
-
-            <p className="text-right text-xs font-semibold text-slate-700 mb-2">
-              &lt; 소재지 변경 재교부 &gt;
-            </p>
-
-            <div className="border-2 border-black p-8 text-slate-900 relative">
-              <div className="text-xs font-bold mb-6">전남 - 제15호</div>
-              
-              <h2 className="text-center text-xl font-black tracking-widest mb-10 text-black">
-                안전진단전문기관 등록증
-              </h2>
-
-              <div className="space-y-4 text-xs font-bold leading-relaxed mb-12 pl-4">
-                <p><span className="inline-block w-28">1. 상 호 :</span> {companyName}</p>
-                <p><span className="inline-block w-28">2. 대 표 자 :</span> 정 찬 욱</p>
-                <p><span className="inline-block w-28">3. 사무소 소재지 :</span> 전라남도 진도군 진도읍 남문길 52(3층)</p>
-                <p><span className="inline-block w-28">4. 등 록 분 야 :</span> 교량 및 터널, 수리, 항만, 건축</p>
-                <p><span className="inline-block w-28">5. 등 록 연 월 일 :</span> 2004년 6월 16일</p>
+          <div className="h-full flex flex-col justify-between">
+            <div>
+              <div className="text-center mt-2 mb-2">
+                <h1 className="text-2xl font-black tracking-widest text-black">
+                  【진단기관 등록증】
+                </h1>
               </div>
 
-              <p className="text-center text-xs font-bold leading-relaxed mb-10">
-                「시설물의 안전 및 유지관리에 관한 특별법」 제28조에<br />
-                따른 안전진단전문기관으로 등록합니다.
+              <p className="text-right text-xs font-semibold text-slate-700 mb-2">
+                &lt; 소재지 변경 재교부 &gt;
               </p>
+            </div>
 
-              <p className="text-center text-xs font-bold tracking-widest mb-12">
-                2024년 2월 8일
-              </p>
+            <div className="border-2 border-black p-8 text-slate-900 relative min-h-[720px] flex flex-col justify-between my-auto">
+              {/* Background Emblem matching sample Image 1 & 2 */}
+              <JeonnamProvinceEmblemBg />
 
-              <div className="flex justify-center items-center gap-3 mt-4">
-                <span className="text-lg font-black tracking-[0.4em] text-black">
+              <div className="relative z-10">
+                <div className="text-xs font-bold mb-8">전남 - 제15호</div>
+                
+                <h2 className="text-center text-2xl font-black tracking-[0.3em] mb-12 text-black">
+                  안전진단전문기관 등록증
+                </h2>
+
+                <div className="space-y-6 text-sm font-bold leading-relaxed mb-16 pl-6">
+                  <p className="flex items-center"><span className="inline-block w-48 font-black shrink-0">1. 상&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;호 :</span> <span>㈜정진이앤씨</span></p>
+                  <p className="flex items-center"><span className="inline-block w-48 font-black shrink-0">2. 대&nbsp;&nbsp;&nbsp;표&nbsp;&nbsp;&nbsp;자 :</span> <span className="tracking-[0.3em]">정 찬 욱</span></p>
+                  <p className="flex items-start"><span className="inline-block w-48 font-black shrink-0">3. 사무소 소재지 :</span> <span>전라남도 진도군 진도읍 남문길 52(3층)</span></p>
+                  <p className="flex items-center"><span className="inline-block w-48 font-black shrink-0">4. 등 록 분 야 :</span> <span>교량 및 터널, 수리, 항만, 건축</span></p>
+                  <p className="flex items-center"><span className="inline-block w-48 font-black shrink-0">5. 등 록 연 월 일 :</span> <span>2004년 6월 16일</span></p>
+                </div>
+
+                <p className="text-center text-sm font-bold leading-loose mb-12 tracking-wide">
+                  「시설물의 안전 및 유지관리에 관한 특별법」 제28조에<br />
+                  따른 안전진단전문기관으로 등록합니다.
+                </p>
+
+                <p className="text-center text-sm font-black tracking-[0.2em] mb-10">
+                  2024년 2월 8일
+                </p>
+              </div>
+
+              <div className="flex justify-center items-center gap-3 mb-4 relative z-10">
+                <span className="text-2xl font-black tracking-[0.4em] text-black">
                   전 라 남 도 지 사
                 </span>
-                <SquareOfficialSeal name="전라남도" title="지사인" />
+                <SquareOfficialSeal name="전라남도" title="지사" suffix="인" size={74} />
               </div>
             </div>
           </div>
         </div>
 
+        {/* -------------------------------------------------------------------- */}
+        {/* PAGE 5: 【참여기술진 명단】 - MATCHING PDF PAGE 5 */}
+        {/* -------------------------------------------------------------------- */}
+        <div className="page-container font-serif text-black flex flex-col justify-between min-h-[1050px]">
+          <div className="h-full flex flex-col justify-between">
+            <div>
+              <div className="text-center mt-2 mb-4">
+                <h1 className="text-2xl font-black tracking-widest text-black">
+                  【참여기술진 명단】
+                </h1>
+              </div>
 
-        {/* -------------------------------------------------------------------- */}
-        {/* PAGE 4: 【참여기술진 명단】 - EXACT MATCH WITH IMAGE 5 */}
-        {/* -------------------------------------------------------------------- */}
-        <div className="page-container font-serif text-black flex flex-col justify-between">
-          <div>
-            <div className="text-center mt-4 mb-6">
-              <h1 className="text-2xl font-black tracking-widest text-black">
-                【참여기술진 명단】
-              </h1>
+              <div className="mb-3">
+                <p className="text-xs font-extrabold text-black border-b-2 border-black pb-1 inline-block">
+                  용 역 명 : {projectName} 중 정기안전점검 및 초기점검 용역
+                </p>
+              </div>
             </div>
 
-            <div className="mb-3">
-              <p className="text-xs font-extrabold text-black border-b-2 border-black pb-1 inline-block">
-                용 역 명 : {projectName} 중 정기안전점검 용역
-              </p>
+            <div className="flex-1 my-2 flex flex-col justify-stretch">
+              <table className="w-full text-[11px] border-collapse border-t-2 border-b-2 border-black text-center my-auto">
+                <thead>
+                  <tr className="bg-[#D9D9D9] border-b-2 border-black font-extrabold text-black h-9">
+                    <th className="border-r border-black p-1.5 w-[14%]">참여구분</th>
+                    <th className="border-r border-black p-1.5 w-[18%]">참여분야</th>
+                    <th className="border-r border-black p-1.5 w-[16%]">소 속</th>
+                    <th className="border-r border-black p-1.5 w-[14%]">성 명</th>
+                    <th className="border-r border-black p-1.5 w-[28%]">기술자격구분</th>
+                    <th className="p-1.5 w-[10%]">서 명</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black text-black">
+                  <tr className="h-12">
+                    <td className="border-r border-black p-1 font-bold bg-slate-50">과업총괄(PM)</td>
+                    <td className="border-r border-black p-1">과업책임기술자</td>
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 font-bold tracking-widest">박 경 포</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />토목시공기술사</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="박경포" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1 font-bold bg-slate-50" rowSpan={11}>참 여 기 술 인</td>
+                    <td className="border-r border-black p-1" rowSpan={11}>참여기술인</td>
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">정 찬 욱</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />콘크리트기사</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="정찬욱" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">이 재 근</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />토목기사</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="이재근" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">이 민 행</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />학·경력자</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="이민행" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">김 규 장</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />농어업토목기술사, 토목기사</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="김규장" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">조 을 현</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />측량및지형공간정보 기사</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="조을현" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">김 창 대</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />학.경력자</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="김창대" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">정 남 래</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />학.경력자</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="정남래" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">정 남 오</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />토목산업기사</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="정남오" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">김 한 규</td>
+                    <td className="border-r border-black p-1 text-center">토목특급기술자<br />학.경력자</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="김한규" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">양 진 우</td>
+                    <td className="border-r border-black p-1 text-center">토목고급기술자<br />학.경력자</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="양진우" /></td>
+                  </tr>
+                  <tr className="h-11">
+                    <td className="border-r border-black p-1">(주)정진이앤씨</td>
+                    <td className="border-r border-black p-1 tracking-widest font-semibold">김 지 민</td>
+                    <td className="border-r border-black p-1 text-center">토목중급기술자<br />학.경력자</td>
+                    <td className="p-1 align-middle"><EngineerPersonalSeal name="김지민" /></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-
-            <table className="w-full text-[11px] border-collapse border-t-2 border-b-2 border-black text-center">
-              <thead>
-                <tr className="bg-slate-200 border-b border-black font-extrabold text-black">
-                  <th className="border-r border-black p-2 w-[16%]">참여구분</th>
-                  <th className="border-r border-black p-2 w-[22%]">참여분야</th>
-                  <th className="border-r border-black p-2 w-[16%]">소 속</th>
-                  <th className="border-r border-black p-2 w-[14%]">성 명</th>
-                  <th className="border-r border-black p-2 w-[22%]">기술자격구분</th>
-                  <th className="p-2 w-[10%]">서 명</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/40 text-black">
-                <tr>
-                  <td className="border-r border-black p-2 font-bold bg-slate-50">과업총괄(PM)</td>
-                  <td className="border-r border-black p-2">과업책임기술자</td>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2 font-bold">{leadEngineer}</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />토목시공기술사</td>
-                  <td className="p-2"><RedStamp text={leadEngineer} size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2 font-bold bg-slate-50" rowSpan={8}>참 여 기 술 인</td>
-                  <td className="border-r border-black p-2" rowSpan={8}>자료검토 및<br />기술지원</td>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">이 재 근</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />토목기사</td>
-                  <td className="p-2"><RedStamp text="이재근" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">정 찬 욱</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />콘크리트기사</td>
-                  <td className="p-2"><RedStamp text="정찬욱" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">이 민 행</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />학·경력자</td>
-                  <td className="p-2"><RedStamp text="이민행" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">김 규 장</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />농업토목기술사<br />건설안전기사</td>
-                  <td className="p-2"><RedStamp text="김규장" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">조 을 현</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />측량 및 지형공간정보기사</td>
-                  <td className="p-2"><RedStamp text="조을현" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">정 경 수</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />토목기사</td>
-                  <td className="p-2"><RedStamp text="정경수" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">김 한 규</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />학·경력자</td>
-                  <td className="p-2"><RedStamp text="김한규" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">정 남 래</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />학·경력자</td>
-                  <td className="p-2"><RedStamp text="정남래" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2 font-bold bg-slate-50" rowSpan={4}>현장 조사 및<br />보고서 작성</td>
-                  <td className="border-r border-black p-2" rowSpan={4}>현장 조사 및<br />보고서 작성</td>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">감 경 일</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목특급기술자<br />토목기사</td>
-                  <td className="p-2"><RedStamp text="감경일" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">양 진 우</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목고급기술자<br />학·경력자</td>
-                  <td className="p-2"><RedStamp text="양진우" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">김 지 민</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목중급기술자<br />학·경력자</td>
-                  <td className="p-2"><RedStamp text="김지민" size="small" /></td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2">{companyName}</td>
-                  <td className="border-r border-black p-2">임 현 승</td>
-                  <td className="border-r border-black p-2 text-left pl-2">토목고급기술자<br />토목기사</td>
-                  <td className="p-2"><RedStamp text="임현승" size="small" /></td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
 
-
         {/* -------------------------------------------------------------------- */}
-        {/* PAGE 5: 【책임기술자 교육수료증】 - EXACT MATCH WITH IMAGE 6 */}
+        {/* PAGE 6: 【책임기술자 교육수료증】 - MATCHING PDF PAGE 6 */}
         {/* -------------------------------------------------------------------- */}
         <div className="page-container font-serif text-black flex flex-col justify-between">
           <div>
@@ -577,42 +1346,88 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
             </div>
 
             <div className="border-4 border-double border-slate-700 p-8 text-black relative">
-              <p className="text-xs font-bold mb-4">제 보수-9726 호</p>
+              <div className="flex justify-between items-center text-xs font-bold mb-4">
+                <span>제 2020-25-0054 호 (인터넷)</span>
+                <span className="border border-black px-2 py-0.5 text-[10px]">재발급 | 발급번호: KICTE-546023<br />발급일자: 2020-07-28</span>
+              </div>
+
+              <h2 className="text-center text-3xl font-black tracking-[0.5em] my-8">
+                수 &nbsp; 료 &nbsp; 증
+              </h2>
+
+              <div className="space-y-4 text-xs font-bold leading-relaxed mb-8 pl-8">
+                <p><span className="inline-block w-28">성&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;명 :</span> 박 경 포</p>
+                <p><span className="inline-block w-28">생 년 월 일 :</span> 75.06.11</p>
+                <p><span className="inline-block w-28">소&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;속 :</span> (주)정진이앤씨</p>
+                <p><span className="inline-block w-28">교 육 과 정 :</span> 정밀안전진단과정(교량 및 터널반)</p>
+                <p><span className="inline-block w-28">교 육 기 간 :</span> 2020.07.06 ~ 2020.07.27 &nbsp;( 70 시간 )</p>
+                <p><span className="inline-block w-28">교 육 근 거 :</span> 시설물의 안전 및 유지관리에 관한 특별법 시행규칙 제10조</p>
+              </div>
+
+              <p className="text-center text-xs font-bold leading-loose mb-10 px-4">
+                상기인은 위의 교육과정을 수료하였으므로<br />
+                이 증서를 수여합니다.
+              </p>
+
+              <p className="text-center text-xs font-bold tracking-widest mb-10">
+                2020년 07월 27일
+              </p>
+
+              <div className="flex justify-center items-center gap-2 mt-4">
+                <span className="text-lg font-black tracking-[0.3em]">
+                  건 설 기 술 교 육 원 장
+                </span>
+                <SquareOfficialSeal name="건설기술" title="원장인" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* -------------------------------------------------------------------- */}
+        {/* PAGE 7: 【수료증】 - MATCHING PDF PAGE 7 */}
+        {/* -------------------------------------------------------------------- */}
+        <div className="page-container font-serif text-black flex flex-col justify-between">
+          <div>
+            <div className="text-center mt-4 mb-6">
+              <h1 className="text-2xl font-black tracking-widest text-black">
+                【수 료 증】
+              </h1>
+            </div>
+
+            <div className="border-4 border-double border-amber-600 p-8 text-black relative bg-amber-50/10">
+              <p className="text-xs font-bold mb-4">제 2020 - 1907474호</p>
 
               <h2 className="text-center text-3xl font-black tracking-[0.5em] my-8">
                 수  료  증
               </h2>
 
               <div className="space-y-4 text-xs font-bold leading-relaxed mb-8 pl-8">
-                <p><span className="inline-block w-24">성      명 :</span> {leadEngineer}</p>
-                <p><span className="inline-block w-24">생 년 월 일 :</span> 1975년 6월 11일</p>
-                <p><span className="inline-block w-24">소      속 :</span> {companyName}</p>
-                <p><span className="inline-block w-24">교 육 과 정 :</span> 정밀안전진단 보수교육과정</p>
-                <p><span className="inline-block w-24">교 육 종 류 :</span> 교량터널(진단보수)</p>
-                <p><span className="inline-block w-24">교  육  명 :</span> 25-0기 교량터널반 (진단보수)</p>
-                <p><span className="inline-block w-24">교 육 기 간 :</span> 2024. 12. 18. ~ 2024. 12. 20. (14시간)</p>
+                <p><span className="inline-block w-24">성      명 :</span> 이 재 근</p>
+                <p><span className="inline-block w-24">생 년 월 일 :</span> 60.06.15</p>
+                <p><span className="inline-block w-24">주      소 :</span> 한국농어촌공사 전남지역본부 화순지사 지역개발부</p>
+                <p><span className="inline-block w-24">교 육 과 정 :</span> 수리시설 정밀안전진단 실무(1)기</p>
+                <p><span className="inline-block w-24">교 육 기 간 :</span> 2020.11.2 ~ 11.13 (70시간)</p>
               </div>
 
               <p className="text-center text-xs font-bold leading-loose mb-10 px-4">
-                위 사람은 「시설물의 안전 및 유지관리에 관한 특별법」<br />
-                시행령 제9조, 시행규칙 제10조, 지침 제94조에 따라<br />
-                위의 교육과정을 수료하였으므로 이 증서를 수여합니다.
+                위 사람은 농식품공무원교육원에서 실시한<br />
+                『수리시설 정밀안전진단 실무』 과정을 이수하였으므로<br />
+                이 증서를 드립니다.
               </p>
 
               <p className="text-center text-xs font-bold tracking-widest mb-10">
-                2024년 12월 20일
+                2021년 12월 09일
               </p>
 
               <div className="flex justify-center items-center gap-2 mt-4">
                 <span className="text-lg font-black tracking-[0.3em]">
-                  국 토 안 전 관 리 원 장
+                  농식품공무원교육원장
                 </span>
-                <SquareOfficialSeal name="국토안전" title="원장인" />
+                <SquareOfficialSeal name="농식품" title="원장인" />
               </div>
             </div>
           </div>
         </div>
-
 
         {/* -------------------------------------------------------------------- */}
         {/* PAGE 6 & 7: 보고서 목차 - EXACT MATCH WITH IMAGES 7 & 8 */}
@@ -930,8 +1745,8 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
             </h2>
 
             <div className="space-y-4">
-              {report.photos && report.photos.length > 0 ? (
-                report.photos.slice(0, 2).map((photo, pIdx) => (
+              {activeReport.photos && activeReport.photos.length > 0 ? (
+                activeReport.photos.slice(0, 2).map((photo, pIdx) => (
                   <div key={pIdx} className="border-2 border-black p-1.5 bg-white">
                     <div className="w-full h-56 bg-slate-200 overflow-hidden flex items-center justify-center">
                       <img src={photo.url} alt={photo.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -949,17 +1764,17 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
                       <span className="text-xs font-bold">덕곡배수문 천공기 작업중 전경(1)</span>
                     </div>
                     <div className="border-t border-black mt-1 pt-1 text-center bg-slate-50">
-                      <p className="text-xs font-bold text-black">덕곡배수문 천공기 작업중 전경(1)</p>
+                      <p className="text-xs font-bold text-black">{targetName} 작업 중 전경(1)</p>
                     </div>
                   </div>
 
                   <div className="border-2 border-black p-1.5 bg-white">
                     <div className="w-full h-56 bg-slate-200 flex flex-col items-center justify-center text-slate-500">
                       <Building className="w-10 h-10 mb-2 opacity-50" />
-                      <span className="text-xs font-bold">덕곡배수문 천공기 작업중 전경(2)</span>
+                      <span className="text-xs font-bold">{targetName} 작업 중 전경(2)</span>
                     </div>
                     <div className="border-t border-black mt-1 pt-1 text-center bg-slate-50">
-                      <p className="text-xs font-bold text-black">덕곡배수문 천공기 작업중 전경(2)</p>
+                      <p className="text-xs font-bold text-black">{targetName} 작업 중 전경(2)</p>
                     </div>
                   </div>
                 </>
@@ -975,7 +1790,7 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
         {/* PAGE 11: CONTENT PAGE 4 (1.3.1 과업개요) - IMAGE 12 */}
         {/* -------------------------------------------------------------------- */}
         <div className="page-container font-serif text-black flex flex-col justify-between">
-          <ContentHeader chapterTitle="제1장 일반사항" />
+          <ContentHeader chapterTitle="제1장 일반사항" pageNum={4} />
 
           <div className="my-1">
             <h2 className="text-base font-black text-black mb-2">
@@ -988,58 +1803,52 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
             <table className="w-full text-xs border-collapse border-2 border-black text-left">
               <tbody className="divide-y divide-black">
                 <tr>
-                  <td className="w-1/4 font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">공 사 명</td>
-                  <td className="w-3/4 p-2.5 font-bold text-black">{projectName}</td>
+                  <td className="w-1/4 font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 명</td>
+                  <td className="w-3/4 p-2 font-bold text-black">{projectName}</td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">공 사 위 치</td>
-                  <td className="p-2.5 text-black">{projectLocation}</td>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 위 치</td>
+                  <td className="p-2 text-black">{projectLocation}</td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">공 사 목 적</td>
-                  <td className="p-2.5 text-black">국가하천인 남강의 치수안정도 확보 및 하천의 상태, 문화여가공간 조성</td>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 목 적</td>
+                  <td className="p-2 text-black">지방도 839호선 미개설 구간 확포장을 통한 지역 균형발전 및 수송효율 증대</td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">공 사 개 요</td>
-                  <td className="p-2.5 text-black leading-relaxed">
-                    □ 취약시설물보강 : 28개소(남강25개소, 가화천2개소, 덕천강1개소)<br />
-                    □ 교량 : 2개소(정암교, 자전거교)<br />
-                    □ 하도정비 : 1,000m(남강)<br />
-                    □ 자전거도로(포장) : 1,151m
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 개 요</td>
+                  <td className="p-2 text-black leading-relaxed">
+                    □ 흙깍기: 토사 34,800m³, 리핑암 25,931m³<br />
+                    □ 흙쌓기: 노상 13,298m³, 노체 39,268m³<br />
+                    □ 구조물공: 교량 3개소(L=230m), 옹벽 5개소(L=832.0m), 암거 12개소(L=390.5m)<br />
+                    □ 포장공: 아스팔트 포장 43,188m²
                   </td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">주 요 공 법</td>
-                  <td className="p-2.5 text-black leading-relaxed">
-                    □ 기초 : 복합말뚝기초<br />
-                    □ 외부마감비계 : 시스템 비계<br />
-                    □ 교량 가시설공법 : Sheet Pile, H-pile+토류판, STRUT<br />
-                    □ 취약시설물 차수공법 : 심층혼합처리공법, 비약액주입공법
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">주 요 공 법</td>
+                  <td className="p-2 text-black leading-relaxed">
+                    □ 옹벽공법: L형 콘크리트 옹벽 및 보강토 옹벽<br />
+                    □ 비탈면안정공법: 식생블럭공, 시드스프레이
                   </td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">발 주 자</td>
-                  <td className="p-2.5 text-black">{client}</td>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">발 주 자</td>
+                  <td className="p-2 text-black">{client}</td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">시 공 자</td>
-                  <td className="p-2.5 text-black font-bold">{contractor}</td>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">시 공 자</td>
+                  <td className="p-2 text-black font-bold">{contractor}</td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">건 설 사 업 단</td>
-                  <td className="p-2.5 text-black">{supervisor}</td>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">건 설 사 업 단</td>
+                  <td className="p-2 text-black">{supervisor}</td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">설 계 자</td>
-                  <td className="p-2.5 text-black">(주)도화엔지니어링</td>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">설 계 자</td>
+                  <td className="p-2 text-black">(주)도화엔지니어링</td>
                 </tr>
                 <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">공 사 금 액</td>
-                  <td className="p-2.5 text-black font-semibold">23,008,098,000원</td>
-                </tr>
-                <tr>
-                  <td className="font-extrabold p-2.5 bg-slate-200 border-r border-black text-center">공 사 기 간</td>
-                  <td className="p-2.5 text-black">2025. 05. 21 ~ 2029. 05. 20</td>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 기 간</td>
+                  <td className="p-2 text-black">2024. 07. 22 ~ 2029. 07. 20</td>
                 </tr>
               </tbody>
             </table>
@@ -1053,9 +1862,9 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
         {/* PAGE 12: CONTENT PAGE 5 (1.3.2 점검결과 & 1.3.3 총평) - IMAGE 13 */}
         {/* -------------------------------------------------------------------- */}
         <div className="page-container font-serif text-black flex flex-col justify-between">
-          <ContentHeader chapterTitle="제1장 일반사항" />
+          <ContentHeader chapterTitle="제1장 일반사항" pageNum={5} />
 
-          <div className="my-1 space-y-4">
+          <div className="my-1 space-y-3">
             <div>
               <h3 className="text-sm font-bold text-black mb-2">
                 1.3.2 대상시설물 점검결과
@@ -1063,45 +1872,52 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
               <table className="w-full text-xs border-collapse border-2 border-black text-center">
                 <thead>
                   <tr className="bg-slate-200 border-b border-black font-extrabold text-black">
-                    <th className="border-r border-black p-2 w-[35%]">점검항목</th>
-                    <th className="border-r border-black p-2 w-[25%]">점검결과</th>
-                    <th className="border-r border-black p-2 w-[20%]">개선대책</th>
-                    <th className="p-2 w-[20%]">비 고</th>
+                    <th className="border-r border-black p-1.5 w-[35%]">점검항목</th>
+                    <th className="border-r border-black p-1.5 w-[35%]">점검결과</th>
+                    <th className="p-1.5 w-[30%]">비 고</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/50 text-black">
                   <tr>
-                    <td className="border-r border-black p-2.5 text-left font-bold" rowSpan={2}>
-                      공사 목적물의 품질·시공 상태 등의 적정성
+                    <td className="border-r border-black p-2 text-left font-bold">
+                      임시시설 및 가설공법의 안전성
                     </td>
-                    <td className="border-r border-black p-2 text-left">천공기 거치 상태 적정성</td>
-                    <td className="border-r border-black p-2 font-bold">양 호</td>
+                    <td className="border-r border-black p-2 font-bold">적정하게 관리 중</td>
                     <td className="p-2">-</td>
                   </tr>
                   <tr>
-                    <td className="border-r border-black p-2 text-left">오거 및 와이어로프 상태</td>
-                    <td className="border-r border-black p-2 font-bold">양 호</td>
+                    <td className="border-r border-black p-2 text-left font-bold">
+                      비파괴시험 결과 (콘크리트 압축강도 / 철근배근 조사)
+                    </td>
+                    <td className="border-r border-black p-2 font-bold">해당사항 없음</td>
                     <td className="p-2">-</td>
                   </tr>
                   <tr>
-                    <td className="border-r border-black p-2.5 text-left font-bold">
+                    <td className="border-r border-black p-2 text-left font-bold">
+                      육안(외관)조사 결과
+                    </td>
+                    <td className="border-r border-black p-2 font-bold">특이사항 없음</td>
+                    <td className="p-2">-</td>
+                  </tr>
+                  <tr>
+                    <td className="border-r border-black p-2 text-left font-bold">
                       인접건축물 또는 구조물의 안전성 등 공사장 주변 안전조치의 적정성
                     </td>
-                    <td className="border-r border-black p-2 font-bold" colSpan={2}>적정하게 관리중</td>
+                    <td className="border-r border-black p-2 font-bold">적정하게 관리 중</td>
                     <td className="p-2">-</td>
                   </tr>
                   <tr>
-                    <td className="border-r border-black p-2.5 text-left font-bold">
-                      공사목적물의 안전시공을 위한 임시시설 및 가설공법의 안전성
+                    <td className="border-r border-black p-2 text-left font-bold">
+                      건설공사 안전관리 적정성 평가
                     </td>
-                    <td className="border-r border-black p-2 font-bold" colSpan={2}>적정하게 관리중</td>
+                    <td className="border-r border-black p-2 font-bold">적정하게 관리 중</td>
                     <td className="p-2">-</td>
                   </tr>
                   <tr>
-                    <td className="border-r border-black p-2.5 text-left font-bold">
-                      건설공사 안전관리 검토
+                    <td className="border-r border-black p-2 text-left font-bold">
+                      구조검토 결과
                     </td>
-                    <td className="border-r border-black p-2 font-bold" colSpan={2}>활발하게 활동중</td>
+                    <td className="border-r border-black p-2 font-bold">발생응력은 허용부재력 이내로 안정</td>
                     <td className="p-2">-</td>
                   </tr>
                 </tbody>
@@ -1113,20 +1929,20 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
                 1.3.3 점검결과 총평
               </h3>
               <div className="border-2 border-black p-0 bg-white">
-                <div className="bg-slate-200 border-b border-black p-2 text-center font-extrabold text-xs">
+                <div className="bg-slate-200 border-b border-black p-1.5 text-center font-extrabold text-xs">
                   책임기술자 종합 의견
                 </div>
-                <div className="p-4 text-xs leading-relaxed text-black text-justify space-y-3">
+                <div className="p-3 text-xs leading-relaxed text-black text-justify space-y-2">
                   <p className="indent-2">
-                    대상시설물인 &ldquo;{projectName}&rdquo; 중 덕곡배수문 주변으로 차수벽을 설치하기 위하여 천공기 작업 현장의 안전시공 상태에 대한 면밀한 육안 점검을 실시하였다.
+                    대상시설물인 &ldquo;{projectName}&rdquo; 중 {targetName}의 시공 상태에 대한 면밀한 육안 점검을 실시하였고, 각종 품질관리 사항 및 안전관리 활동 등에 대한 분석 및 검토를 실시하였다.
                   </p>
                   <p className="indent-2">
-                    금회 정기안전점검 결과, 현장에 반입된 천공기는 건설기계 안전성검사 및 장비작업 계획서 검토결과 양호한 것으로 확인되었고 천공기의 제원 및 모델 등록번호판 등은 현장에 제출된 서류와 일치한 것으로 확인되었다.
+                    금회 정기안전점검 결과, 4차로확포장 공사를 위한 {targetName} 시공 현장의 {checkDegree} 정기안전점검 결과 기초 터파기 및 철근배근이 완료되었으며 기초타설전 설치상태 등은 설계도면 및 시방서 기준에 준하여 작업이 진행된 것으로 확인되었고 시설물의 안전성을 저해할 만한 특별한 사항은 없는 것으로 점검되었다.
                   </p>
                   <p className="indent-2">
-                    작업전 하천변 주변 지반의 상태는 평탄하게 정리되어 있었으며, 부등침하로 인한 전도방지를 위해 전도방지 철판을 설치하여 운용중인 것으로 점검되었다. 또한, 천공작업시 신호수 및 관리감독자를 적절히 배치하고 작업구획을 설정하여 작업반경내 작업자의 접근을 차단하는 등 안전사고를 미연에 방지하고 있는 것으로 조사되었다. 당 현장은 차수벽 설치를 위한 천공작업이 진행 중인 상태로 작업수칙을 준수하여 시공 중인 것으로 확인되었으며, 앞으로의 후속공정 진행시에도 각 공종별로 잠재되어 있는 위험요인을 미연에 방지하여 무재해 현장으로 마무리될 수 있도록 하여야 할 것이다.
+                    또한, 자재 검수 등 품질관리사항 및 안전관리 활동 등도 관련 법규에 의거 지속적으로 진행되고 있는 것으로 확인되었다. 앞으로의 후속공정 진행시에도 각 공종별로 잠재되어 있는 위험요인을 미연에 방지하여 무재해 현장으로 마무리될 수 있도록 안전관리계획서에 의거 작업수칙을 준수하여야 할 것으로 사료된다.
                   </p>
-                  <div className="pt-4 flex justify-end items-center gap-2 font-bold">
+                  <div className="pt-2 flex justify-end items-center gap-2 font-bold">
                     <span>책임기술자 : {leadEngineer}</span>
                     <RedStamp text={leadEngineer} size="normal" />
                   </div>
@@ -1151,16 +1967,17 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
             "2.3  건설기술진흥법 대상시설물 현황",
             "2.4  정기안전점검의 범위 및 내용",
             "2.5  사용장비 및 시험기기 현황",
-            "2.6  점검수행 일정 및 방법"
+            "2.6  점검수행 일정 및 방법",
+            "2.7  정기안전점검 체크리스트"
           ]}
         />
 
 
         {/* -------------------------------------------------------------------- */}
-        {/* PAGE 14: CONTENT PAGE 8 (2.1 과업의 목적 & 2.2 공사현황) - IMAGE 15 */}
+        {/* PAGE 14: CONTENT PAGE 7 (2.1 과업의 목적 & 2.2 공사현황) - IMAGE 15 */}
         {/* -------------------------------------------------------------------- */}
         <div className="page-container font-serif text-black flex flex-col justify-between">
-          <ContentHeader chapterTitle="제2장 정기안전점검의 개요" />
+          <ContentHeader chapterTitle="제2장 정기안전점검의 개요" pageNum={7} />
 
           <div className="my-1 space-y-4">
             <div>
@@ -1168,7 +1985,7 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
                 2.1 과업의 목적
               </h2>
               <p className="text-xs leading-relaxed text-black text-justify indent-2">
-                본 과업은 건설기술 진흥법 제62조, 동법 시행령 제100조, 제101조 및 시행규칙 제59조의 규정에 의한 국토교통부 고시 제2022-791호 건설공사 안전관리 업무수행 지침 【별표1】에 따라 <strong className="font-bold">&ldquo;{projectName}&rdquo;</strong> 의 작업 중인 취약시설물보강의 천공기 작업에 대한 정기안전점검을 실시하는 것으로, 공사목적물의 품질·시공 상태 등의 적정성, 공사목적물의 안전시공을 위한 임시시설 및 가설공법의 안전성, 인접 건축물 또는 구조물의 안전성 등 공사장 주변 안전조치의 적정성 여부를 평가하고자 육안조사를 통하여 현장조사를 실시하고, 점검을 통한 문제점 발생 시 사전조치를 함으로써 건설공사의 안전을 확보함은 물론 향후 유지관리에 필요한 자료로 활용하고자 한다.
+                본 과업은 건설기술 진흥법 제62조, 동법 시행령 제100조, 제101조 및 시행규칙 제59조의 규정에 의한 국토교통부 고시 건설공사 안전관리 업무수행 지침 【별표1】에 따라 <strong className="font-bold">&ldquo;{projectName}&rdquo;</strong> 의 작업 중인 {targetName} 구조물에 대한 정기안전점검을 실시하는 것으로, 공사목적물의 품질·시공 상태 등의 적정성, 공사목적물의 안전시공을 위한 임시시설 및 가설공법의 안전성, 인접 건축물 또는 구조물의 안전성 등 공사장 주변 안전조치의 적정성 여부를 평가하고자 육안조사를 통하여 현장조사를 실시하고, 점검을 통한 문제점 발생 시 사전조치를 함으로써 건설공사의 안전을 확보함은 물론 향후 유지관리에 필요한 자료로 활용하고자 한다.
               </p>
             </div>
 
@@ -1192,7 +2009,7 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
                   </tr>
                   <tr>
                     <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 목 적</td>
-                    <td className="p-2 text-black">국가하천인 남강의 치수안정도 확보 및 하천의 상태, 문화여가공간 조성</td>
+                    <td className="p-2 text-black">지방도 839호선 미개설 구간 확포장을 통한 지역 균형발전 및 수송효율 증대</td>
                   </tr>
                   <tr>
                     <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">발 주 자</td>
@@ -1206,15 +2023,51 @@ export default function ReportViewer({ report, onBack }: ReportViewerProps) {
                     <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">건 설 사 업 단</td>
                     <td className="p-2 text-black">{supervisor}</td>
                   </tr>
+                  <tr>
+                    <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 기 간</td>
+                    <td className="p-2 text-black">2024. 07. 22 ~ 2029. 07. 20</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
           </div>
 
-          <ContentFooter pageNum={8} />
+          <ContentFooter pageNum={7} />
         </div>
 
+        {/* Chapters 2, 3, 4 & Appendix TOC items */}
+        <ReportViewerChapters
+          report={activeReport}
+          projectName={projectName}
+          targetName={targetName}
+          checkDegree={checkDegree}
+          contractor={contractor}
+          client={client}
+          supervisor={supervisor}
+          companyName={companyName}
+          leadEngineer={leadEngineer}
+          rawCheckDate={rawCheckDate}
+          projectLocation={projectLocation}
+          ContentHeader={ContentHeader}
+          ContentFooter={ContentFooter}
+          ChapterCoverPage={ChapterCoverPage}
+          JecLogoSymbol={JecLogoSymbol}
+          EngineerPersonalSeal={EngineerPersonalSeal}
+          SquareOfficialSeal={SquareOfficialSeal}
+        />
+
       </div>
+
+      {/* Floating AI Chatbot Editor Trigger Button removed as requested */}
+
+      {/* AI Conversational Chatbot Drawer */}
+      {showChatEditor && (
+        <ReportChatEditor
+          report={activeReport}
+          onUpdateReport={handleUpdateActiveReport}
+          onClose={() => setShowChatEditor(false)}
+        />
+      )}
     </div>
   );
 }

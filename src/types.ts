@@ -72,6 +72,7 @@ export interface SampleTemplateConfig {
   fontStyle?: "맑은 고딕" | "휴먼명조" | "나눔고딕" | "바탕체" | string;
   toneStyle?: "격식체 (~함, ~사료됨)" | "서술체 (~하였습니다)" | "간결체 (~함)";
   tableStyle?: "표준 격자형" | "클린 테두리형" | "헤더 강조형";
+  customSealUrl?: string; // Custom seal image data URL or path
 }
 
 export interface CustomReportSection {
