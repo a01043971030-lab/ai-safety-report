@@ -99,6 +99,10 @@
       "schema": "SafetyReport",
       "description": "Highly secure collection storing construction safety reports and automated AI audits."
     },
+    "/photo_blobs/{blobId}": {
+      "schema": "PhotoBlob",
+      "description": "Collection storing photo image binary data."
+    },
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Stores details of registered users and their current membership status."

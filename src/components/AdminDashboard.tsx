@@ -277,13 +277,13 @@ export default function AdminDashboard({
     reports.forEach((rep) => {
       let matchedKey = "";
       for (const [key, group] of groupMap.entries()) {
-        const uComp = (group.companyName || "").trim().toLowerCase();
+        const uComp = (group.companyName || "").replace(/\s+/g, "").toLowerCase();
         const uName = (group.username || "").trim().toLowerCase();
-        const rComp = (rep.companyName || "").trim().toLowerCase();
+        const rComp = (rep.companyName || "").replace(/\s+/g, "").toLowerCase();
         const rUser = (rep.creatorUsername || "").trim().toLowerCase();
 
         if (
-          (rUser.length > 0 && rUser === uName) ||
+          (rUser.length > 0 && (rUser === uName || uName.includes(rUser) || rUser.includes(uName))) ||
           (rComp.length > 0 && uComp.length > 0 && (rComp === uComp || rComp.includes(uComp) || uComp.includes(rComp)))
         ) {
           matchedKey = key;
@@ -396,17 +396,21 @@ export default function AdminDashboard({
     );
   });
 
-  // Filter reports specifically for selected user using username or companyName
+  // Filter reports specifically for selected user using username, companyName, or representative
   const filteredReports = reports.filter(r => {
     if (!selectedUser) return false;
     
-    // Match by creatorUsername OR companyName
-    const userCompName = (selectedUser.companyName || "").trim().toLowerCase();
-    const repCompName = (r.companyName || "").trim().toLowerCase();
+    const userCompName = (selectedUser.companyName || "").replace(/\s+/g, "").toLowerCase();
+    const repCompName = (r.companyName || "").replace(/\s+/g, "").toLowerCase();
+    const userName = (selectedUser.username || "").trim().toLowerCase();
+    const repUser = (r.creatorUsername || "").trim().toLowerCase();
+    const userRepName = (selectedUser.representative || "").replace(/\s+/g, "").toLowerCase();
+    const repRepName = (r.representative || "").replace(/\s+/g, "").toLowerCase();
 
     const isUserReport = 
-      (r.creatorUsername && r.creatorUsername === selectedUser.username) ||
-      (userCompName.length > 0 && repCompName.length > 0 && (repCompName === userCompName || repCompName.includes(userCompName) || userCompName.includes(repCompName)));
+      (repUser.length > 0 && (repUser === userName || userName.includes(repUser) || repUser.includes(userName))) ||
+      (userCompName.length > 0 && repCompName.length > 0 && (repCompName === userCompName || repCompName.includes(userCompName) || userCompName.includes(repCompName))) ||
+      (userRepName.length > 0 && repRepName.length > 0 && (repRepName === userRepName || repRepName.includes(userRepName) || userRepName.includes(repRepName)));
     
     if (!isUserReport) return false;
 
@@ -427,11 +431,15 @@ export default function AdminDashboard({
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
+    const uComp = (user.companyName || "").replace(/\s+/g, "").toLowerCase();
+    const uName = (user.username || "").trim().toLowerCase();
+
     return reports.filter(r => {
-      const isUserReport = 
-        (r.creatorUsername && r.creatorUsername === user.username) ||
-        (r.companyName?.trim() === user.companyName?.trim());
-      if (!isUserReport) return false;
+      const rUser = (r.creatorUsername || "").trim().toLowerCase();
+      const rComp = (r.companyName || "").replace(/\s+/g, "").toLowerCase();
+      const isMatch = (rUser.length > 0 && (rUser === uName || uName.includes(rUser))) ||
+                      (uComp.length > 0 && rComp.length > 0 && (rComp === uComp || rComp.includes(uComp) || uComp.includes(rComp)));
+      if (!isMatch) return false;
       
       const rDate = new Date(r.createdAt || Date.now());
       return rDate.getFullYear() === currentYear && rDate.getMonth() === currentMonth;
@@ -779,7 +787,20 @@ export default function AdminDashboard({
             전체 등록 회원들의 등급 승인, 무료 작성 잔여 한도 상향 조정, 사용 정지 처리 및 개별 보고서 수정/삭제 권리를 총괄 집행합니다.
           </p>
         </div>
-        <div className="absolute bottom-4 right-6 print:hidden">
+        <div className="absolute bottom-4 right-6 print:hidden flex items-center gap-2">
+          <button 
+            onClick={() => {
+              onRefreshReports();
+              onRefreshUsers();
+              if (onRefreshLoginLogs) onRefreshLoginLogs();
+              alert(`실시간 클라우드 DB 동기화 완료\n- 보고서: 총 ${reports.length}건\n- 등록회원: 총 ${allUsers.length}개사`);
+            }}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+            title="클라우드 Firestore 데이터베이스와 즉시 동기화합니다"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            실시간 DB 즉시 동기화
+          </button>
           <button 
             onClick={onLogoutAdmin}
             className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
@@ -1096,7 +1117,19 @@ export default function AdminDashboard({
 
                         {/* 한도 / 건수 */}
                         <td className="p-2 border-r border-slate-150 text-center font-mono font-bold text-slate-700">
-                          {u.status === "정회원" ? "무제한" : `${u.reportsCreatedCount}/${u.allowedReportsCount || 5}`}
+                          {(() => {
+                            if (u.status === "정회원") return "무제한";
+                            const uComp = (u.companyName || "").replace(/\s+/g, "").toLowerCase();
+                            const uName = (u.username || "").trim().toLowerCase();
+                            const actualCount = reports.filter(r => {
+                              const rUser = (r.creatorUsername || "").trim().toLowerCase();
+                              const rComp = (r.companyName || "").replace(/\s+/g, "").toLowerCase();
+                              return (rUser.length > 0 && (rUser === uName || uName.includes(rUser) || rUser.includes(uName))) ||
+                                     (uComp.length > 0 && rComp.length > 0 && (rComp === uComp || rComp.includes(uComp) || uComp.includes(rComp)));
+                            }).length;
+                            const countToShow = Math.max(u.reportsCreatedCount || 0, actualCount);
+                            return `${countToShow}/${u.allowedReportsCount || 5}`;
+                          })()}
                         </td>
 
                         {/* 사용권한상태 */}

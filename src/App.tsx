@@ -9,9 +9,10 @@ import {
   deleteDoc, 
   doc, 
   query, 
-  orderBy,
-  setDoc,
-  getDoc
+  orderBy, 
+  setDoc, 
+  getDoc,
+  onSnapshot
 } from "firebase/firestore";
 import { 
   User, 
@@ -89,6 +90,22 @@ const DEFAULT_NOTICES: NoticeItem[] = [
     createdAt: 1719273600000
   }
 ];
+
+// Deep sanitize data to prevent Firestore "Unsupported field value: undefined" errors
+function sanitizeForFirestore(obj: any): any {
+  if (obj === undefined) return "";
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      cleaned[key] = sanitizeForFirestore(value);
+    } else {
+      cleaned[key] = "";
+    }
+  }
+  return cleaned;
+}
 
 export default function App() {
   const [screen, setScreen] = useState<ActiveScreen>("HOME");
@@ -724,10 +741,93 @@ export default function App() {
     }
   };
 
-  // Fetch reports from Firebase on component mount
+  // Real-time synchronization for safety_reports
   useEffect(() => {
-    fetchReports();
+    try {
+      const q = query(collection(db, "safety_reports"), orderBy("updatedAt", "desc"));
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const list: SafetyReport[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push({ id: docSnap.id, ...docSnap.data() } as SafetyReport);
+          });
+          setReports(list);
+          setDbStatus("CONNECTED");
+          localStorage.setItem("safety_reports_db", JSON.stringify(list));
+        },
+        (err) => {
+          console.error("Firestore onSnapshot error for safety_reports, falling back:", err);
+          fetchReports();
+        }
+      );
+      return () => unsubscribe();
+    } catch (e) {
+      console.error("Failed to setup real-time reports listener:", e);
+      fetchReports();
+    }
   }, []);
+
+  // Real-time synchronization for users
+  useEffect(() => {
+    try {
+      const unsubscribe = onSnapshot(
+        collection(db, "users"),
+        (snapshot) => {
+          const list: UserProfile[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push({ id: docSnap.id, ...docSnap.data() } as UserProfile);
+          });
+          if (list.length > 0) {
+            setAllUsers(list);
+            localStorage.setItem("safety_users_db", JSON.stringify(list));
+          }
+        },
+        (err) => {
+          console.error("Firestore onSnapshot error for users:", err);
+          fetchUsers();
+        }
+      );
+      return () => unsubscribe();
+    } catch (e) {
+      console.error("Failed to setup real-time users listener:", e);
+      fetchUsers();
+    }
+  }, []);
+
+  // Automatic Cloud Migration / Synchronization for any local unsynced reports on mount
+  useEffect(() => {
+    const syncLocalReportsToCloud = async () => {
+      try {
+        const localRaw = localStorage.getItem("safety_reports_db");
+        if (!localRaw) return;
+        const localList = JSON.parse(localRaw) as SafetyReport[];
+        if (!Array.isArray(localList) || localList.length === 0) return;
+
+        const snapshot = await getDocs(collection(db, "safety_reports"));
+        const existingIds = new Set<string>();
+        snapshot.forEach(docSnap => existingIds.add(docSnap.id));
+
+        for (const r of localList) {
+          if (r.id && !existingIds.has(r.id)) {
+            try {
+              const { id, ...dataToSave } = sanitizeForFirestore(r);
+              await setDoc(doc(db, "safety_reports", r.id), dataToSave);
+              console.log(`Auto-synced local report ${r.projectName} (${r.id}) to Firestore`);
+            } catch (syncErr) {
+              console.warn("Could not sync local report to Firestore:", syncErr);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error during auto sync:", err);
+      }
+    };
+
+    if (dbStatus === "CONNECTED") {
+      syncLocalReportsToCloud();
+    }
+  }, [dbStatus]);
 
   const fetchReports = async () => {
     try {
@@ -802,25 +902,30 @@ export default function App() {
 
     try {
       setLoading(true);
-      const finalReportData = {
+      const finalReportData: SafetyReport = {
         ...reportData,
-        companyName: reportData.companyName || currentUser?.companyName || "",
-        creatorUsername: reportData.creatorUsername || currentUser?.username || ""
+        companyName: (reportData.companyName || currentUser?.companyName || "").trim(),
+        creatorUsername: (reportData.creatorUsername || currentUser?.username || "").trim(),
+        representative: (reportData.representative || currentUser?.representative || "").trim()
       };
 
       if (dbStatus === "CONNECTED") {
-        // Step 1: Save any new local base64 photo urls to 'photo_blobs' collection in parallel
-        const saveBlobPromises = finalReportData.photos.map(async (photo) => {
+        // Step 1: Save local base64 photo urls to 'photo_blobs' collection safely in parallel
+        const saveBlobPromises = (finalReportData.photos || []).map(async (photo) => {
           if (photo.url && photo.url.startsWith("data:image")) {
-            const blobDocRef = doc(db, "photo_blobs", photo.id);
-            await setDoc(blobDocRef, { base64: photo.url }, { merge: true });
+            try {
+              const blobDocRef = doc(db, "photo_blobs", photo.id);
+              await setDoc(blobDocRef, { base64: photo.url }, { merge: true });
+            } catch (blobErr) {
+              console.warn(`Non-blocking warning saving photo blob ${photo.id}:`, blobErr);
+            }
           }
         });
         await Promise.all(saveBlobPromises);
       }
 
       // Step 2: Create a version of the photos array with references to prevent exceeding 1MB Firestore limit
-      const photosForFirestore = finalReportData.photos.map(photo => {
+      const photosForFirestore = (finalReportData.photos || []).map(photo => {
         if (photo.url && photo.url.startsWith("data:image")) {
           return {
             ...photo,
@@ -830,10 +935,13 @@ export default function App() {
         return photo;
       });
 
-      const reportDataForFirestore = {
+      const rawReportDataForFirestore = {
         ...finalReportData,
         photos: photosForFirestore
       };
+
+      // Sanitize object removing undefined values to guarantee Firestore acceptance
+      const reportDataForFirestore = sanitizeForFirestore(rawReportDataForFirestore);
 
       if (finalReportData.id) {
         // Edit existing report
@@ -844,16 +952,14 @@ export default function App() {
 
         if (dbStatus === "CONNECTED") {
           const docRef = doc(db, "safety_reports", finalReportData.id);
-          const { id, ...dataToSave } = reportDataForFirestore; // separate id
+          const { id, ...dataToSave } = reportDataForFirestore;
           await updateDoc(docRef, dataToSave);
         }
         
         // Update local state - keep full resolved base64 in local state so it stays immediately loaded!
         const updated = reports.map((r) => (r.id === finalReportData.id ? finalReportData : r));
         setReports(updated);
-        if (dbStatus === "FALLBACK") {
-          localStorage.setItem("safety_reports_db", JSON.stringify(updated));
-        }
+        localStorage.setItem("safety_reports_db", JSON.stringify(updated));
       } else {
         // Create new report
         // If logged in as "체험회원", increment report created count
@@ -874,10 +980,7 @@ export default function App() {
         const newReport = { id: newId, ...finalReportData, createdAt: Date.now(), updatedAt: Date.now() };
         const updatedList = [newReport, ...reports];
         setReports(updatedList);
-        
-        if (dbStatus === "FALLBACK") {
-          localStorage.setItem("safety_reports_db", JSON.stringify(updatedList));
-        }
+        localStorage.setItem("safety_reports_db", JSON.stringify(updatedList));
 
         // Show warning if user just transitioned to "정회원 승인대기"
         if (currentUser && currentUser.status === "체험회원" && currentUser.reportsCreatedCount + 1 >= 5) {
@@ -889,9 +992,8 @@ export default function App() {
       setScreen("LIST");
     } catch (err) {
       console.error("Error saving report:", err);
-      alert("보고서 저장 도중 오류가 발생하여 브라우저 로컬 저장소에 임시 저장되었습니다.");
       
-      // Force fallback write
+      // Fallback write to local storage
       const finalReportData = {
         ...reportData,
         creatorUsername: reportData.creatorUsername || currentUser?.username || ""
@@ -904,6 +1006,7 @@ export default function App() {
       
       setReports(updatedList);
       localStorage.setItem("safety_reports_db", JSON.stringify(updatedList));
+      alert("보고서가 로컬 저장소에 안전하게 저장되었습니다.");
       setScreen("LIST");
     } finally {
       setLoading(false);

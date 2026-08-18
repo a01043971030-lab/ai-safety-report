@@ -11,6 +11,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Allow read/write access to photo_blobs collection
+    match /photo_blobs/{blobId} {
+      allow read, write: if true;
+    }
+
     // Allow read/write access to users collection
     match /users/{userId} {
       allow read, write: if true;
