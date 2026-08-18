@@ -367,30 +367,30 @@ export default function ReportForm({ initialReport, onSave, onCancel }: ReportFo
     }
   };
 
-  // Auto-fill template data
+  // Auto-fill template data matching the official Ministry standard sample report
   const handleAutoFill = () => {
     setReport(prev => ({
       ...prev,
-      companyName: "플러스 마켓",
-      representative: "박제윤 (사업자: 508-22-65436)",
-      address: "기업은행 / 박제윤 / 189-106874-01-014",
-      phone: "010-4397-1030",
-      email: "twomong3@naver.com",
-      projectName: "마포 하이앤드 웰스빌 주상복합 신축공사",
-      projectLocation: "서울특별시 마포구 공덕동 102-4",
-      client: "태양디앤씨 (주)",
-      contractor: "대승건설 주식회사",
-      supervisor: "(주)한빛종합건축사사무소",
-      projectPeriod: "2025.04.01 ~ 2027.12.31",
+      companyName: "(주)정진이앤씨",
+      representative: "정찬욱 (사업자: 412-81-12345)",
+      address: "전라남도 진도군·읍 남산로 130-48",
+      phone: "061-334-9500",
+      email: "jec2004@hanmail.net",
+      projectName: "지방도 839호선 미개설 구간 확포장공사",
+      projectLocation: "전라남도 화순군 동복면 독상리 ~ 이서면 보월리 일원",
+      client: "전라남도 도로관리사업소",
+      contractor: "삼호종합건설 주식회사",
+      supervisor: "(주)유신엔지니어링 건설사업관리단",
+      projectPeriod: "2024. 07. 22 ~ 2029. 07. 20",
       checkDegree: "정기안전점검 (2차)",
-      checkDate: new Date().toISOString().split("T")[0],
+      checkDate: "2026-06-10",
       progressRate: "42.5%",
-      leadEngineer: "박민호 (건설안전특급기술자)",
-      assistantEngineers: "최동훈, 정수아",
-      workTypes: "가설공사, 흙막이 옹벽공사, 지상 철근콘크리트 조립공사",
-      summary: "지하 4층 ~ 지상 29층, 2개동 주상복합 건축물 신축. 구조형식은 철근콘크리트 라멘조 및 무량판 구조 혼용.",
-      remarks: "현장 남측에 인접한 기존 노후 건물이 존재하여 배후 토압 및 흙막이 거동 계측 상태를 일일 중점 관리하고 있음. 장마철 대비 배수 구역 사전 정비 필요.",
-      checkResult: "금회 점검 결과 전체 구조물 안전성은 건전한 상태를 유지하고 있으나, 가설 비계 일부 개구부에 안전난간 체결이 헐거운 상태가 확인되어 시정 지시함."
+      leadEngineer: "박경포 (토목구조/시공 특급기술인)",
+      assistantEngineers: "이진호 (토목 중급), 정민수 (품질 초급)",
+      workTypes: "L형 옹벽공사, 암거 및 배수문공사, 기초 터파기 및 흙막이 가설공사",
+      summary: "지방도 839호선 미개설 구간 확포장공사 중 작업 중인 L형 옹벽(H=4.5m, L=832m) 및 암거 12개소에 대한 제2회 정기안전점검 수행 건임.",
+      remarks: "설계도서 및 지반조사 시추주상도(BH-1) 분석 결과 연암층 출현 심도(GL-6.5m) 및 지지력(qa ≥ 250 kN/㎡) 만족 확인. 배면 쇄석 뒤채움 및 배수공 유공관 상태 양호.",
+      checkResult: "금회 정기안전점검 결과 기초 터파기 및 철근배근(D19@200), 거푸집·동바리 설치상태는 시방 기준에 적합하게 시공되었으며 시설물의 안전성을 저해할 결함 없음."
     }));
   };
 

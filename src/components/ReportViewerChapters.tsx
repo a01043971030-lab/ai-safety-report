@@ -1,6 +1,6 @@
 import React from "react";
 import { SafetyReport, PhotoItem } from "../types";
-import { Camera, Ruler, ShieldCheck, HardHat, CheckCircle2, AlertTriangle, FileText, Image as ImageIcon, MapPin, Compass } from "lucide-react";
+import { Camera, Ruler, ShieldCheck, HardHat, CheckCircle2, AlertTriangle, FileText, Image as ImageIcon, MapPin, Compass, Wrench, Shield, Layers, Activity, Users, Truck, AlertOctagon, HelpCircle } from "lucide-react";
 
 interface ChaptersProps {
   report: SafetyReport;
@@ -22,7 +22,358 @@ interface ChaptersProps {
   SquareOfficialSeal: React.FC<{ name: string; title?: string }>;
 }
 
+// --------------------------------------------------------------------------------------
+// SVG CAD DRAWING 1: L-형 옹벽 표준단면도 및 배근상세도 (Standard Engineering Drawing)
+// --------------------------------------------------------------------------------------
+const RetainingWallEngineeringDrawing: React.FC<{ targetName: string }> = ({ targetName }) => {
+  return (
+    <div className="w-full bg-white border-2 border-black p-3 my-2 text-black select-none">
+      <div className="text-center font-bold text-xs pb-1 mb-2 border-b border-black">
+        [ {targetName || "L형 철근콘크리트 옹벽"} 표준 단면도 및 배근 상세도 (Scale 1:50) ]
+      </div>
+      <div className="relative w-full aspect-[16/9] max-h-[280px] bg-slate-50 border border-slate-300 overflow-hidden flex items-center justify-center p-2">
+        <svg viewBox="0 0 760 380" className="w-full h-full">
+          <defs>
+            {/* Gravel Pattern */}
+            <pattern id="gravelHatch" width="12" height="12" patternUnits="userSpaceOnUse">
+              <circle cx="3" cy="3" r="1.5" fill="#64748b" opacity="0.6" />
+              <circle cx="9" cy="9" r="1.2" fill="#475569" opacity="0.6" />
+              <circle cx="8" cy="2" r="1" fill="#94a3b8" opacity="0.6" />
+            </pattern>
+            {/* Ground Soil Hatch */}
+            <pattern id="soilHatch" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="16" stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 3" />
+            </pattern>
+            {/* Concrete Hatch */}
+            <pattern id="concHatch" width="10" height="10" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="0.7" fill="#000" />
+              <circle cx="7" cy="7" r="0.7" fill="#000" />
+            </pattern>
+          </defs>
+
+          {/* Natural Ground Surface (Backfill & Original Ground) */}
+          <path d="M 390 60 L 740 60 L 740 330 L 100 330 L 100 240 L 290 240 L 290 60 Z" fill="url(#soilHatch)" opacity="0.3" />
+          
+          {/* Crushed Gravel Backfill zone behind wall */}
+          <polygon points="390,60 520,60 480,270 390,270" fill="url(#gravelHatch)" stroke="#334155" strokeWidth="1" />
+          <text x="450" y="150" fontSize="10" fontWeight="bold" fill="#0f172a" textAnchor="middle">투수성 쇄석 뒤채움 (t=300mm)</text>
+          <text x="450" y="165" fontSize="8" fill="#334155" textAnchor="middle">필터부직포(t=3mm) 포설</text>
+
+          {/* Leveling / Lean Concrete Bedding (버림 콘크리트) */}
+          <rect x="250" y="300" width="310" height="15" fill="#e2e8f0" stroke="#000" strokeWidth="1.5" />
+          <text x="405" y="311" fontSize="9" fontWeight="bold" fill="#000" textAnchor="middle">버림콘크리트(t=100mm, fck=18MPa) / 잡석다짐(t=200mm)</text>
+
+          {/* Main L-Type Retaining Wall Concrete Body */}
+          <path
+            d="M 330 60 L 390 60 L 390 270 L 540 270 L 540 300 L 270 300 L 270 270 L 330 270 Z"
+            fill="#f1f5f9"
+            stroke="#000"
+            strokeWidth="2.5"
+          />
+
+          {/* Reinforcement Rebars (배근선) */}
+          {/* Main vertical stem rebar */}
+          <line x1="345" y1="70" x2="345" y2="285" stroke="#dc2626" strokeWidth="2.5" />
+          <line x1="375" y1="70" x2="375" y2="285" stroke="#2563eb" strokeWidth="2.5" />
+          {/* Footing main rebar */}
+          <line x1="280" y1="285" x2="530" y2="285" stroke="#dc2626" strokeWidth="2.5" />
+          <line x1="280" y1="292" x2="530" y2="292" stroke="#2563eb" strokeWidth="1.8" />
+          
+          {/* Distribution stirrup points (배력근 점 표기) */}
+          {[90, 120, 150, 180, 210, 240, 265].map((y, idx) => (
+            <circle key={`bar-${idx}`} cx="360" cy={y} r="2.5" fill="#000" />
+          ))}
+
+          {/* Weep Hole (PVC 배수공) */}
+          <line x1="330" y1="250" x2="390" y2="245" stroke="#000" strokeWidth="4" />
+          <text x="260" y="235" fontSize="9" fontWeight="bold" fill="#000">PVC 배수공 (Φ50mm @ 2.0m 간격)</text>
+          <line x1="290" y1="238" x2="330" y2="248" stroke="#000" strokeWidth="1" markerEnd="url(#arrow)" />
+
+          {/* Dimensions and Engineering Callout Lines */}
+          {/* Height Dimension (H=4.5m) */}
+          <line x1="230" y1="60" x2="230" y2="300" stroke="#000" strokeWidth="1.2" />
+          <line x1="225" y1="60" x2="235" y2="60" stroke="#000" strokeWidth="1.2" />
+          <line x1="225" y1="300" x2="235" y2="300" stroke="#000" strokeWidth="1.2" />
+          <text x="215" y="185" fontSize="11" fontWeight="bold" fill="#000" textAnchor="end" transform="rotate(-90 215 185)">전체 높이 H = 3.0 ~ 5.0m</text>
+
+          {/* Base Width Dimension (B=2.4m) */}
+          <line x1="270" y1="340" x2="540" y2="340" stroke="#000" strokeWidth="1.2" />
+          <line x1="270" y1="335" x2="270" y2="345" stroke="#000" strokeWidth="1.2" />
+          <line x1="540" y1="335" x2="540" y2="345" stroke="#000" strokeWidth="1.2" />
+          <text x="405" y="355" fontSize="11" fontWeight="bold" fill="#000" textAnchor="middle">저판 폭 B = 2,200 ~ 2,600 mm</text>
+
+          {/* Top Wall Width (tw=400mm) */}
+          <line x1="330" y1="45" x2="390" y2="45" stroke="#000" strokeWidth="1" />
+          <text x="360" y="38" fontSize="9" fontWeight="bold" fill="#000" textAnchor="middle">벽체 상단폭 400mm</text>
+
+          {/* Rebar Specifications Note Box */}
+          <rect x="555" y="180" width="190" height="95" fill="#fff" stroke="#000" strokeWidth="1.5" />
+          <text x="565" y="198" fontSize="10" fontWeight="bold" fill="#000">■ 철근 및 재료 규격</text>
+          <text x="565" y="215" fontSize="8.5" fill="#000">• 주철근: SD400 D19 @200</text>
+          <text x="565" y="230" fontSize="8.5" fill="#000">• 배력근: SD400 D13 @250</text>
+          <text x="565" y="245" fontSize="8.5" fill="#000">• 콘크리트: fck = 24 MPa</text>
+          <text x="565" y="260" fontSize="8.5" fill="#000">• 최소 피복두께: 80 mm 확보</text>
+        </svg>
+      </div>
+      <div className="flex justify-between text-[10px] text-slate-700 font-sans pt-1">
+        <span>설계기준: 국토교통부 콘크리트 구조기준(KDS 14 20 00)</span>
+        <span>허용지지력: qa ≥ 200 kN/m² (풍화암/연암 기초)</span>
+      </div>
+    </div>
+  );
+};
+
+// --------------------------------------------------------------------------------------
+// SVG GEOTECHNICAL DRAWING 2: 시추주상도 (Borehole Drill Log Diagram)
+// --------------------------------------------------------------------------------------
+const GeotechnicalBoreholeDiagram: React.FC = () => {
+  return (
+    <div className="w-full bg-white border-2 border-black p-3 my-2 text-black select-none">
+      <div className="text-center font-bold text-xs pb-1 mb-2 border-b border-black">
+        [ 지반조사 시추주상도 DRILL LOG (시추공 BH-1, 표고 EL. +18.45m) ]
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[10px] border-collapse border border-black text-center">
+          <thead>
+            <tr className="bg-slate-200 border-b border-black font-bold">
+              <th className="border-r border-black p-1 w-[12%]">지 층 명</th>
+              <th className="border-r border-black p-1 w-[10%]">심 도 (m)</th>
+              <th className="border-r border-black p-1 w-[10%]">층 후 (m)</th>
+              <th className="border-r border-black p-1 w-[18%]">주상 단면</th>
+              <th className="border-r border-black p-1 w-[26%]">표준관입시험 N치 (회/30cm)</th>
+              <th className="p-1 w-[24%]">지반 공학적 특성 및 평가</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-black">
+            <tr>
+              <td className="border-r border-black p-1 font-bold bg-amber-50">매 립 토<br />(Fill Soil)</td>
+              <td className="border-r border-black p-1">0.0 ~ 1.2</td>
+              <td className="border-r border-black p-1">1.2</td>
+              <td className="border-r border-black p-1 bg-amber-100 font-mono text-[9px]">░░░░░░░░</td>
+              <td className="border-r border-black p-1 text-left pl-2">
+                <div className="flex items-center gap-1">
+                  <div className="h-2.5 bg-slate-400 rounded-sm" style={{ width: '20%' }}></div>
+                  <span className="font-bold">N = 6~8</span>
+                </div>
+              </td>
+              <td className="p-1 text-left pl-2 text-[9.5px]">암갈색 점토질 모래, 느슨한 상태</td>
+            </tr>
+            <tr>
+              <td className="border-r border-black p-1 font-bold bg-yellow-50">퇴 적 토<br />(Alluvium)</td>
+              <td className="border-r border-black p-1">1.2 ~ 3.5</td>
+              <td className="border-r border-black p-1">2.3</td>
+              <td className="border-r border-black p-1 bg-yellow-100 font-mono text-[9px]">▒▒▒▒▒▒▒▒</td>
+              <td className="border-r border-black p-1 text-left pl-2">
+                <div className="flex items-center gap-1">
+                  <div className="h-2.5 bg-blue-500 rounded-sm" style={{ width: '40%' }}></div>
+                  <span className="font-bold">N = 14~18</span>
+                </div>
+                <span className="text-[8px] text-blue-700 font-semibold">▼ 지하수위 GL(-)2.2m</span>
+              </td>
+              <td className="p-1 text-left pl-2 text-[9.5px]">황갈색 실트질 모래, 중간 조밀</td>
+            </tr>
+            <tr>
+              <td className="border-r border-black p-1 font-bold bg-orange-50">풍 화 토<br />(Weathered)</td>
+              <td className="border-r border-black p-1">3.5 ~ 6.0</td>
+              <td className="border-r border-black p-1">2.5</td>
+              <td className="border-r border-black p-1 bg-orange-100 font-mono text-[9px]">▓▓▓▓▓▓▓▓</td>
+              <td className="border-r border-black p-1 text-left pl-2">
+                <div className="flex items-center gap-1">
+                  <div className="h-2.5 bg-emerald-600 rounded-sm" style={{ width: '70%' }}></div>
+                  <span className="font-bold">N = 32~42</span>
+                </div>
+              </td>
+              <td className="p-1 text-left pl-2 text-[9.5px]">조밀한 실트질 자갈질 모래 상태</td>
+            </tr>
+            <tr>
+              <td className="border-r border-black p-1 font-bold bg-emerald-50">풍 화 암<br />(W. Rock)</td>
+              <td className="border-r border-black p-1">6.0 ~ 8.5</td>
+              <td className="border-r border-black p-1">2.5</td>
+              <td className="border-r border-black p-1 bg-emerald-100 font-mono text-[9px]">████████</td>
+              <td className="border-r border-black p-1 text-left pl-2">
+                <div className="flex items-center gap-1">
+                  <div className="h-2.5 bg-red-600 rounded-sm" style={{ width: '100%' }}></div>
+                  <span className="font-bold text-red-700">N &gt; 50/10cm</span>
+                </div>
+                <span className="text-[8px] text-emerald-800 font-bold">★ 옹벽 기초 지지층 도달</span>
+              </td>
+              <td className="p-1 text-left pl-2 text-[9.5px] font-bold text-slate-900">
+                허용지지력 qa ≥ 250 kN/m² 확보 (직접기초 지지층으로 극히 양호)
+              </td>
+            </tr>
+            <tr>
+              <td className="border-r border-black p-1 font-bold bg-slate-100">연 암 층<br />(Soft Rock)</td>
+              <td className="border-r border-black p-1">8.5 ~ 12.0</td>
+              <td className="border-r border-black p-1">3.5+</td>
+              <td className="border-r border-black p-1 bg-slate-200 font-mono text-[9px]">████████</td>
+              <td className="border-r border-black p-1 text-left pl-2">
+                <span className="font-bold text-red-700">N &gt; 50/5cm (RQD 65%)</span>
+              </td>
+              <td className="p-1 text-left pl-2 text-[9.5px]">신선한 편마암질 기반암층</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// --------------------------------------------------------------------------------------
+// SVG SCHEDULE GANTT CHART (공사예정공정표 다이어그램)
+// --------------------------------------------------------------------------------------
+const ConstructionScheduleGantt: React.FC<{ projectName: string }> = ({ projectName }) => {
+  return (
+    <div className="w-full bg-white border-2 border-black p-3 my-2 text-black select-none">
+      <div className="text-center font-bold text-xs pb-1 mb-2 border-b border-black">
+        [ {projectName} 세부 공사예정공정표 (Gantt Chart - 기준시점: 착공후) ]
+      </div>
+      <table className="w-full text-[10px] border-collapse border border-black text-center">
+        <thead>
+          <tr className="bg-slate-200 border-b border-black font-bold">
+            <th className="border-r border-black p-1 w-[20%]">공 종 별</th>
+            <th className="border-r border-black p-1 w-[12%]">수량/단위</th>
+            <th className="border-r border-black p-1 w-[17%]">1~2개월</th>
+            <th className="border-r border-black p-1 w-[17%]">3~4개월</th>
+            <th className="border-r border-black p-1 w-[17%]">5~6개월</th>
+            <th className="p-1 w-[17%]">7개월 이후</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-black">
+          <tr>
+            <td className="border-r border-black p-1 font-bold text-left pl-2">1. 가설공사 및 현장정리</td>
+            <td className="border-r border-black p-1">1 식</td>
+            <td className="border-r border-black p-1 bg-blue-100 font-bold text-blue-900">■■■■ (100%)</td>
+            <td className="border-r border-black p-1 text-slate-400">―</td>
+            <td className="border-r border-black p-1 text-slate-400">―</td>
+            <td className="p-1 text-slate-400">―</td>
+          </tr>
+          <tr>
+            <td className="border-r border-black p-1 font-bold text-left pl-2">2. 기초 터파기 및 토공</td>
+            <td className="border-r border-black p-1">L=832m</td>
+            <td className="border-r border-black p-1 bg-blue-100 font-bold text-blue-900">■■■■ (80%)</td>
+            <td className="border-r border-black p-1 bg-blue-50 text-blue-800">■■ (20%)</td>
+            <td className="border-r border-black p-1 text-slate-400">―</td>
+            <td className="p-1 text-slate-400">―</td>
+          </tr>
+          <tr className="bg-amber-50/50">
+            <td className="border-r border-black p-1 font-bold text-left pl-2 text-amber-900">
+              3. 옹벽 기초철근 및 타설 <span className="text-[8px] bg-red-600 text-white px-1 py-0.5 rounded font-sans">금회 점검</span>
+            </td>
+            <td className="border-r border-black p-1 font-bold">L=180m</td>
+            <td className="border-r border-black p-1 bg-amber-200 font-bold text-red-700">● 점검(진행중)</td>
+            <td className="border-r border-black p-1 bg-blue-100 font-bold text-blue-900">■■■■ (완료예정)</td>
+            <td className="border-r border-black p-1 text-slate-400">―</td>
+            <td className="p-1 text-slate-400">―</td>
+          </tr>
+          <tr>
+            <td className="border-r border-black p-1 font-bold text-left pl-2">4. 벽체 거푸집 및 콘크리트</td>
+            <td className="border-r border-black p-1">L=832m</td>
+            <td className="border-r border-black p-1 text-slate-400">―</td>
+            <td className="border-r border-black p-1 bg-slate-100">■■■■ (예정)</td>
+            <td className="border-r border-black p-1 bg-slate-100">■■■■ (예정)</td>
+            <td className="p-1 text-slate-400">―</td>
+          </tr>
+          <tr>
+            <td className="border-r border-black p-1 font-bold text-left pl-2">5. 뒤채움 쇄석 및 되메우기</td>
+            <td className="border-r border-black p-1">V=1,240m³</td>
+            <td className="border-r border-black p-1 text-slate-400">―</td>
+            <td className="border-r border-black p-1 text-slate-400">―</td>
+            <td className="border-r border-black p-1 bg-slate-100">■■■■ (예정)</td>
+            <td className="p-1 bg-slate-100">■■ (마무리)</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="flex justify-between text-[9px] text-slate-600 pt-1">
+        <span>※ 기상 악화(우천, 강풍 등) 및 지반 변동 시 공정 일정 조정 가능</span>
+        <span className="font-bold text-black">계획 공정률: 28.5% / 실적 공정률: 29.2% (정상 추진중)</span>
+      </div>
+    </div>
+  );
+};
+
+// --------------------------------------------------------------------------------------
+// SVG SAFETY & SHORING DIAGRAM (거푸집·동바리 안전지침 및 가설구조물 단면도)
+// --------------------------------------------------------------------------------------
+const FormworkSafetyDiagram: React.FC = () => {
+  return (
+    <div className="w-full bg-white border-2 border-black p-3 my-2 text-black select-none">
+      <div className="text-center font-bold text-xs pb-1 mb-2 border-b border-black">
+        [ 거푸집·동바리 및 벽체 가설 지지대(파이프서포트 V4) 설치 안전 표준도 ]
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-[10px]">
+        <div className="border border-black p-2 bg-slate-50 flex flex-col justify-between">
+          <p className="font-bold text-center border-b border-slate-300 pb-1 mb-1">【벽체 거푸집 긴결재 및 지지구조】</p>
+          <ul className="space-y-1 text-slate-800 pl-2 list-disc list-inside">
+            <li><strong>타이로드(평타이):</strong> 허용인장력 18kN 이상, 상하간격 300~450mm 이내</li>
+            <li><strong>수직·수평 멍에재:</strong> 사각파이프(□-50x50x2.3t) 2열 밀착 배치</li>
+            <li><strong>버팀대 각도:</strong> 지면과 45°~60° 이내 유지 및 바닥 앵커 고정</li>
+            <li><strong>측압 관리:</strong> 시간당 콘크리트 타설속도 v ≤ 0.8m/h 준수</li>
+          </ul>
+        </div>
+        <div className="border border-black p-2 bg-slate-50 flex flex-col justify-between">
+          <p className="font-bold text-center border-b border-slate-300 pb-1 mb-1">【동바리 조립 및 붕괴방지 기준】</p>
+          <ul className="space-y-1 text-slate-800 pl-2 list-disc list-inside">
+            <li><strong>파이프서포트 연결:</strong> 높이 3.5m 초과 시 수평연결재 2개 방향 설치</li>
+            <li><strong>상하부 조절:</strong> U헤드잭 및 잭베이스 삽입길이 150mm 이상</li>
+            <li><strong>침하방지:</strong> 바닥 버림콘크리트 상부 또는 두께 50mm 침목 받침</li>
+            <li><strong>이음금지:</strong> 서포트 3본 이상 연결 사용 금지(전용 부재 사용)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --------------------------------------------------------------------------------------
+// SVG SAFETY ORG CHART (건설공사 안전보건 관리 조직도)
+// --------------------------------------------------------------------------------------
+const SafetyOrgChart: React.FC<{ contractor: string; leadEngineer: string }> = ({ contractor, leadEngineer }) => {
+  return (
+    <div className="w-full bg-white border-2 border-black p-3 my-2 text-black select-none">
+      <div className="text-center font-bold text-xs pb-1 mb-2 border-b border-black">
+        [ {contractor} 현장 안전보건관리 조직 체계도 (Line-Staff 체계) ]
+      </div>
+      <div className="flex flex-col items-center justify-center py-2 text-xs">
+        {/* Level 1: 현장대리인 */}
+        <div className="border-2 border-black bg-slate-200 px-6 py-1.5 font-black text-center shadow-sm">
+          안전보건 총괄책임자 (현장대리인)
+        </div>
+        <div className="h-4 w-0.5 bg-black"></div>
+
+        {/* Level 2: 스태프 조직 (안전관리자, 품질관리자, 보건관리자) */}
+        <div className="flex items-center gap-4">
+          <div className="border border-black bg-blue-50 px-3 py-1 font-bold text-center text-[11px]">
+            안전관리자<br /><span className="font-normal text-[10px]">(정진이앤씨 협력)</span>
+          </div>
+          <div className="border border-black bg-emerald-50 px-3 py-1 font-bold text-center text-[11px]">
+            품질관리책임자<br /><span className="font-normal text-[10px]">(특급품질기술인)</span>
+          </div>
+          <div className="border border-black bg-amber-50 px-3 py-1 font-bold text-center text-[11px]">
+            보건관리자 / 의사<br /><span className="font-normal text-[10px]">(비상응급체계)</span>
+          </div>
+        </div>
+        <div className="h-4 w-0.5 bg-black"></div>
+
+        {/* Level 3: 관리감독자 */}
+        <div className="border-2 border-black bg-slate-100 px-6 py-1.5 font-bold text-center">
+          관리감독자 (공사팀장 / 공무팀장 / 공종별 반장)
+        </div>
+        <div className="h-4 w-0.5 bg-black"></div>
+
+        {/* Level 4: 현장 근로자 및 위험작업원 */}
+        <div className="grid grid-cols-3 gap-2 w-full max-w-[500px] text-center text-[10px]">
+          <div className="border border-slate-400 p-1 bg-white font-semibold">토공·천공 작업팀</div>
+          <div className="border border-slate-400 p-1 bg-white font-semibold">철근·콘크리트팀</div>
+          <div className="border border-slate-400 p-1 bg-white font-semibold">가설·신호수 안전팀</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --------------------------------------------------------------------------------------
 // Standard Sample Photos for Fallback when user photos are missing
+// --------------------------------------------------------------------------------------
 const SAMPLE_FALLBACK_PHOTOS: { title: string; location: string; status: string; result: string; action: string; desc: string; iconBg: string }[] = [
   {
     title: "1. 옹벽 기초 굴착 및 터파기 바닥면 상태 점검",
@@ -105,72 +456,65 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
   return (
     <>
       {/* -------------------------------------------------------------------- */}
-      {/* PAGE 15: 2.2.2 공사 예정공정표 & 2.3 건설기술진흥법 대상시설물 현황 */}
+      {/* PAGE 8: 2.2.2 공사 예정공정표 */}
       {/* -------------------------------------------------------------------- */}
       <div className="page-container font-serif text-black flex flex-col justify-between">
         <ContentHeader chapterTitle="제2장 정기안전점검의 개요" pageNum={8} />
 
+        <div className="my-1 space-y-3">
+          <h3 className="text-xs font-bold text-black mb-1">2.2.2 공사예정공정표</h3>
+          <p className="text-xs leading-relaxed text-black text-justify indent-2 mb-2">
+            본 공사의 전체 공사 기간은 착공일로부터 준공일까지 총 60개월이며, 금회 점검 대상인 &ldquo;{targetName}&rdquo; 구조물 공사는 전체 공정 계획에 의거하여 가설공사, 기초 터파기, 철근배근, 콘크리트 타설, 뒤채움 순으로 진행되고 있다. 세부 공정표는 다음과 같다.
+          </p>
+
+          {/* Gantt Chart Diagram Component */}
+          <ConstructionScheduleGantt projectName={projectName} />
+
+          <div className="border border-black p-2.5 bg-slate-50 text-xs space-y-1">
+            <p className="font-bold text-black">• 공정 관리상의 중점 안전대책:</p>
+            <p className="text-slate-800 leading-relaxed">
+              1) 옹벽 기초 타설 전 지반 지내력 시험(평판재하시험 PBT) 및 암반 노출 상태를 필히 확인 후 후속 공정을 진행함.<br />
+              2) 레미콘 타설 시 외기 온도 및 기상 조건을 고려하여 동결융해 및 균열 발생 방지 양생 대책을 수립·시행함.
+            </p>
+          </div>
+        </div>
+
+        <ContentFooter pageNum={8} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* PAGE 9: 2.3 건설기술진흥법 대상시설물 & 2.4 정기안전점검의 범위 및 내용 */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제2장 정기안전점검의 개요" pageNum={9} />
+
         <div className="my-1 space-y-4">
           <div>
-            <h3 className="text-xs font-bold text-black mb-2">2.2.2 공사 예정공정표</h3>
-            <div className="border border-black p-3 bg-slate-50 text-center">
-              <p className="text-xs font-bold mb-2">[예정공정표 (착공후+D) - 휴무, 우천시 공기 연장]</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[10px] border-collapse border border-slate-400">
-                  <thead>
-                    <tr className="bg-slate-200">
-                      <th className="border border-slate-400 p-1">공종</th>
-                      <th className="border border-slate-400 p-1">규격/수량</th>
-                      <th className="border border-slate-400 p-1">1개월</th>
-                      <th className="border border-slate-400 p-1">2개월</th>
-                      <th className="border border-slate-400 p-1">3개월</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="border border-slate-400 p-1 font-bold">가설/가비계 공사</td>
-                      <td className="border border-slate-400 p-1">자재반입/조립</td>
-                      <td className="border border-slate-400 p-1 bg-black/20 text-center">■■■■</td>
-                      <td className="border border-slate-400 p-1 text-center">―</td>
-                      <td className="border border-slate-400 p-1 text-center">―</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-slate-400 p-1 font-bold">토공사 및 터파기</td>
-                      <td className="border border-slate-400 p-1">L=832m/1차</td>
-                      <td className="border border-slate-400 p-1 bg-black/20 text-center">■■■■</td>
-                      <td className="border border-slate-400 p-1 bg-black/20 text-center">■■■■</td>
-                      <td className="border border-slate-400 p-1 text-center">―</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-slate-400 p-1 font-bold">철근배근 및 기초타설</td>
-                      <td className="border border-slate-400 p-1">L형 옹벽 기초</td>
-                      <td className="border border-slate-400 p-1 text-center">―</td>
-                      <td className="border border-slate-400 p-1 bg-black/20 text-center">■■■■</td>
-                      <td className="border border-slate-400 p-1 bg-black/20 text-center">■■■■</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div>
             <h2 className="text-base font-black text-black mb-2">2.3 건설기술진흥법 대상시설물 현황</h2>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              「건설기술 진흥법」 제62조 및 동법 시행령 제98조에 따라 안전관리계획을 수립하여야 하는 건설공사의 대상시설물 현황은 다음과 같다.
+            </p>
             <table className="w-full text-xs border-collapse border-2 border-black text-center">
               <thead>
                 <tr className="bg-slate-200 border-b border-black font-bold">
                   <th className="border-r border-black p-2 w-1/4">시설물명</th>
-                  <th className="border-r border-black p-2 w-1/3">구조형식</th>
-                  <th className="border-r border-black p-2 w-1/4">시설물 구분</th>
-                  <th className="p-2 w-1/6">비 고</th>
+                  <th className="border-r border-black p-2 w-1/3">구조형식 및 규모</th>
+                  <th className="border-r border-black p-2 w-1/4">관련 법정 구분</th>
+                  <th className="p-2 w-1/6">점검 주기</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-black">
                 <tr>
                   <td className="border-r border-black p-2 font-bold">{targetName}</td>
-                  <td className="border-r border-black p-2">L형 철근콘크리트 옹벽</td>
-                  <td className="border-r border-black p-2">옹벽 구조물</td>
-                  <td className="p-2 font-bold">2종 시설물</td>
+                  <td className="border-r border-black p-2">L형 철근콘크리트 옹벽 (H=3~5m, L=832m)</td>
+                  <td className="border-r border-black p-2">건진법 제62조 대상</td>
+                  <td className="p-2 font-bold">공종별 차수별</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-2 font-bold">절토사면 및 가시설</td>
+                  <td className="border-r border-black p-2">굴착 깊이 5m 이상 절토 비탈면</td>
+                  <td className="border-r border-black p-2">시행령 제98조 제1항</td>
+                  <td className="p-2">수시/정기</td>
                 </tr>
               </tbody>
             </table>
@@ -180,167 +524,29 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
             <h2 className="text-base font-black text-black mb-2">2.4 정기안전점검의 범위 및 내용</h2>
             <h3 className="text-xs font-bold text-black mb-1">2.4.1 정기안전점검 실시시기</h3>
             <p className="text-xs leading-relaxed text-black mb-2">
-              ※ 적용하는 건설공사의 규모, 기간, 현장여건에 따라 점검시기 및 횟수를 조정할 수 있다.<br />
-              「건설기술 진흥법」 제62조에 따른 &ldquo;건설공사 안전관리 업무수행 지침 [별표 1]&rdquo;
+              건설공사 안전관리 업무수행 지침 【별표 1】에 의거, 대상 구조물의 공사 진행 단계에 맞추어 점검을 실시한다.
             </p>
 
             <h3 className="text-xs font-bold text-black mb-1">2.4.2 대상시설물 정기안전점검 시행 현황</h3>
-            <p className="text-xs text-right mb-1 font-bold">[범례] ◯기시행, ●금회시행</p>
+            <p className="text-xs text-right mb-1 font-bold">[범례] ◯ 기시행, ● 금회시행</p>
             <table className="w-full text-xs border-collapse border-2 border-black text-center">
               <thead>
                 <tr className="bg-slate-200 border-b border-black font-bold">
-                  <th className="border-r border-black p-2 w-1/3">공 종</th>
-                  <th className="p-2 w-2/3">{projectName}</th>
+                  <th className="border-r border-black p-2 w-1/3">점검 구분</th>
+                  <th className="border-r border-black p-2 w-1/3">점검 대상 공종</th>
+                  <th className="p-2 w-1/3">시행 일자 및 상태</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black">
-                <tr>
-                  <td className="border-r border-black p-2 font-bold">1차 정기안전점검</td>
-                  <td className="p-2">
-                    가시설공사 및 기초공사 시공시(콘크리트 타설전) <span className="font-extrabold text-black">● ({rawCheckDate || '26.05.12'})</span>
-                  </td>
+                <tr className="bg-slate-50 font-bold">
+                  <td className="border-r border-black p-2">{checkDegree}</td>
+                  <td className="border-r border-black p-2">{targetName} 기초 터파기 및 배근 시공시</td>
+                  <td className="p-2 text-black">● 금회시행 ({rawCheckDate || '2026.05.12'})</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black p-2 font-bold">2차 정기안전점검</td>
-                  <td className="p-2 text-slate-500">구조체공사 시공시 (예정) -</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <ContentFooter pageNum={8} />
-      </div>
-
-      {/* -------------------------------------------------------------------- */}
-      {/* PAGE 16: 2.4.3 내용적 범위, 2.4.4 과업내용, 2.5 사용장비 현황 */}
-      {/* -------------------------------------------------------------------- */}
-      <div className="page-container font-serif text-black flex flex-col justify-between">
-        <ContentHeader chapterTitle="제2장 정기안전점검의 개요" pageNum={9} />
-
-        <div className="my-1 space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-black mb-1">2.4.3 내용적 범위</h3>
-            <p className="text-xs leading-relaxed text-black text-justify mb-2">
-              본 정기안전점검은 건설기술 진흥법 시행규칙 제59조(정기안전점검 및 정밀안전점검)의 규정을 준용하여 점검을 실시하였으며, 구체적인 사항은 다음과 같다.
-            </p>
-            <ol className="list-decimal list-inside text-xs leading-relaxed space-y-1 pl-2">
-              <li>공사목적물의 안전시공을 위한 임시시설 및 가설공법의 안전성</li>
-              <li>공사 목적물의 품질, 시공상태 등의 적정성</li>
-              <li>인접 건축물 또는 구조물의 안전성 등 공사장 주변 안전조치의 적정성</li>
-              <li>영 제98조제1항제5호각 목에 해당하는 건설기계의 설치, 해체 등 작업절차 및 안전조치의 적정성</li>
-              <li>이전의 점검 시 지적된 사항에 대한 조치결과 확인</li>
-            </ol>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-bold text-black mb-1">2.4.4 정기안전점검 과업내용</h3>
-            <table className="w-full text-xs border-collapse border-2 border-black">
-              <thead>
-                <tr className="bg-slate-200 border-b border-black font-bold text-center">
-                  <th className="border-r border-black p-2 w-1/4">구 분</th>
-                  <th className="p-2 w-3/4">과업의 내용</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black text-left">
-                <tr>
-                  <td className="border-r border-black p-2 font-bold text-center">관련자료 조사</td>
-                  <td className="p-2">
-                    • 설계도면 및 관련도서 검토<br />
-                    • 관련기준 검토 및 계측 계획서 검토<br />
-                    • 자체 품질시험 실시 서류 검토<br />
-                    • 안전관리 계획서 서류 검토
-                  </td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2 font-bold text-center">현장조사 및 평가</td>
-                  <td className="p-2">
-                    • 주요 부재별 외관조사 결과 분석<br />
-                    • 조사, 시험 및 측정자료 검토<br />
-                    • 인접건축물/구조물의 안전성 및 공사장 주변 안전조치 적정성<br />
-                    • 임시시설 및 가설공법의 안전성, 건설공사 안전관리 검토
-                  </td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-2 font-bold text-center">종합결론</td>
-                  <td className="p-2">
-                    • 종합결론 도출 및 시설물 상태 평가<br />
-                    • 시공 시 특별한 관리가 필요한 사항<br />
-                    • 기타 안전확보를 위해 필요한 제반사항
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div>
-            <h2 className="text-base font-black text-black mb-2">2.5 사용장비 및 시험기기 현황</h2>
-            <table className="w-full text-[11px] border-collapse border-2 border-black text-center">
-              <thead>
-                <tr className="bg-slate-200 border-b border-black font-bold">
-                  <th className="border-r border-black p-1.5 w-1/6">구 분</th>
-                  <th className="border-r border-black p-1.5 w-1/4">측정장비</th>
-                  <th className="border-r border-black p-1.5 w-1/4">측정분야</th>
-                  <th className="border-r border-black p-1.5 w-1/4">관련사진</th>
-                  <th className="p-1.5 w-1/12">비고</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black">
-                <tr>
-                  <td className="border-r border-black p-1.5 font-bold">외관조사</td>
-                  <td className="border-r border-black p-1.5">디지털 카메라</td>
-                  <td className="border-r border-black p-1.5">현황 촬영</td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-slate-700 bg-slate-50">
-                    <div className="flex items-center justify-center gap-1">
-                      <Camera className="w-3.5 h-3.5 text-blue-600" />
-                      <span>[카메라 보유]</span>
-                    </div>
-                  </td>
-                  <td className="p-1.5">-</td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-1.5 font-bold" rowSpan={3}>제원조사</td>
-                  <td className="border-r border-black p-1.5">50m 줄자 / 5m STEEL자</td>
-                  <td className="border-r border-black p-1.5 font-bold" rowSpan={3}>규격 측정</td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-slate-700 bg-slate-50">
-                    <div className="flex items-center justify-center gap-1">
-                      <Ruler className="w-3.5 h-3.5 text-blue-600" />
-                      <span>[줄자 보유]</span>
-                    </div>
-                  </td>
-                  <td className="p-1.5">-</td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-1.5">STAFF</td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-slate-700 bg-slate-50">
-                    <div className="flex items-center justify-center gap-1">
-                      <Ruler className="w-3.5 h-3.5 text-blue-600" />
-                      <span>[스태프 보유]</span>
-                    </div>
-                  </td>
-                  <td className="p-1.5">-</td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-1.5">버니어캘리퍼스 / 수평계</td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-slate-700 bg-slate-50">
-                    <div className="flex items-center justify-center gap-1">
-                      <Compass className="w-3.5 h-3.5 text-blue-600" />
-                      <span>[수평계 보유]</span>
-                    </div>
-                  </td>
-                  <td className="p-1.5">-</td>
-                </tr>
-                <tr>
-                  <td className="border-r border-black p-1.5 font-bold">기 타</td>
-                  <td className="border-r border-black p-1.5">개인 안전장비(안전대, 안전모, 안전화)</td>
-                  <td className="border-r border-black p-1.5">점검 시 안전장비</td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-slate-700 bg-slate-50">
-                    <div className="flex items-center justify-center gap-1">
-                      <HardHat className="w-3.5 h-3.5 text-amber-600" />
-                      <span>[보호구 착용]</span>
-                    </div>
-                  </td>
-                  <td className="p-1.5">-</td>
+                  <td className="border-r border-black p-2 text-slate-500">차기 정기안전점검</td>
+                  <td className="border-r border-black p-2 text-slate-500">옹벽 벽체 거푸집 및 상부 구조물 시공시</td>
+                  <td className="p-2 text-slate-500">○ 예정 (후속 공정 시)</td>
                 </tr>
               </tbody>
             </table>
@@ -351,92 +557,63 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* PAGE 17: 2.6 일정 및 방법 & 2.7 체크리스트 */}
+      {/* PAGE 10: 2.4.3 내용적 범위 & 2.4.4 과업내용 */}
       {/* -------------------------------------------------------------------- */}
       <div className="page-container font-serif text-black flex flex-col justify-between">
         <ContentHeader chapterTitle="제2장 정기안전점검의 개요" pageNum={10} />
 
         <div className="my-1 space-y-4">
           <div>
-            <h2 className="text-base font-black text-black mb-2">2.6 점검수행 일정 및 방법</h2>
-            <p className="text-xs font-bold mb-2">○ 과업수행 기간 : 2026년 05월 12일 ~ 2026년 06월 10일</p>
-            <div className="pl-4 text-xs space-y-1 mb-3">
-              <p>1) 현장조사 : 2026년 05월 12일</p>
-              <p>2) 자료분석 및 검토 : 2026년 05월 13일 ~ 2026년 05월 26일</p>
-              <p>3) 보고서 작성 및 제출 : 2026년 05월 27일 ~ 2026년 06월 10일</p>
-            </div>
-            <p className="text-xs font-bold mb-2">○ 정기안전점검 과업수행 흐름도</p>
-            <div className="border border-black p-3 bg-slate-50 text-center text-xs space-y-2">
-              <div className="inline-block border border-black px-4 py-1 bg-white font-bold">현장답사 및 자료수집</div>
-              <div>↓</div>
-              <div className="inline-block border border-black px-4 py-1 bg-white font-bold">점검항목별 현장조사</div>
-              <div className="grid grid-cols-4 gap-2 pt-2 text-[10px]">
-                <div className="border border-black p-1 bg-white">품질관리 상태 점검</div>
-                <div className="border border-black p-1 bg-white">구조물 시공 상태 점검</div>
-                <div className="border border-black p-1 bg-white">안전관리 상태 점검</div>
-                <div className="border border-black p-1 bg-white">기타 점검항목</div>
-              </div>
-              <div>↓</div>
-              <div className="inline-block border border-black px-4 py-1 bg-white font-bold">점검결과 분석 및 상태평가 → 보고서 작성 및 제출</div>
+            <h3 className="text-xs font-bold text-black mb-1">2.4.3 내용적 범위</h3>
+            <p className="text-xs leading-relaxed text-black text-justify mb-2">
+              본 점검은 건설기술 진흥법 시행규칙 제59조의 규정을 준수하여 다음과 같은 기술적 사항을 면밀히 검토하고 평가하였다.
+            </p>
+            <div className="border border-black p-3 bg-slate-50 text-xs space-y-1.5 leading-relaxed">
+              <p>1) 공사목적물의 안전시공을 위한 임시시설 및 가설공법의 안전성 평가</p>
+              <p>2) 공사목적물의 품질·시공 상태(배근 간격, 피복두께, 지반 지지력, 이음부 상태 등)의 적정성</p>
+              <p>3) 인접건축물 또는 구조물의 안전성 등 공사장 주변 안전조치의 적정성</p>
+              <p>4) 영 제98조 제1항 제5호 각 목에 해당하는 건설기계(천공기, 크레인, 백호 등)의 안전조치 적정성</p>
+              <p>5) 안전관리계획서에 따른 일상 안전점검 이행 및 위험성평가 실행 상태 검토</p>
             </div>
           </div>
 
           <div>
-            <h2 className="text-base font-black text-black mb-2">2.7 정기안전점검 체크리스트</h2>
-            <div className="bg-slate-200 border-2 border-black p-1 text-center font-bold text-xs mb-2">
-              정기안전점검 Check List ({targetName} 정기안전점검표)
-            </div>
-            <table className="w-full text-xs border-collapse border-2 border-black text-center">
+            <h3 className="text-xs font-bold text-black mb-1">2.4.4 정기안전점검 과업내용</h3>
+            <table className="w-full text-xs border-collapse border-2 border-black">
               <thead>
-                <tr className="bg-slate-100 border-b border-black font-bold">
-                  <th className="border-r border-black p-1.5 w-1/5">구 분</th>
-                  <th className="border-r border-black p-1.5 w-2/5">점 검 사 항</th>
-                  <th className="border-r border-black p-1.5 w-1/8">점검결과</th>
-                  <th className="border-r border-black p-1.5 w-1/8">조치사항</th>
-                  <th className="p-1.5 w-1/5">비 고</th>
+                <tr className="bg-slate-200 border-b border-black font-bold text-center">
+                  <th className="border-r border-black p-2 w-1/4">구 분</th>
+                  <th className="p-2 w-3/4">주 요 과 업 내 용</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black text-left text-[11px]">
+              <tbody className="divide-y divide-black text-left">
                 <tr>
-                  <td className="border-r border-black p-1.5 font-bold text-center">1. 기초지반</td>
-                  <td className="border-r border-black p-1.5">∘ 세굴, 활동 발생 여부<br />∘ 침하 발생 여부</td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">양호<br />양호</td>
-                  <td className="border-r border-black p-1.5 text-center">-<br />-</td>
-                  <td className="p-1.5 text-center">-</td>
+                  <td className="border-r border-black p-2 font-bold text-center bg-slate-50">사전자료 검토</td>
+                  <td className="p-2">
+                    • 설계도면, 지반조사보고서(시추주상도), 구조계산서 검토<br />
+                    • 안전관리계획서 및 품질시험계획서 적정성 확인
+                  </td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black p-1.5 font-bold text-center">2. {targetName}</td>
-                  <td className="border-r border-black p-1.5">
-                    ∘ 전면부 파손 및 손상, 균열, 배부름 등<br />
-                    ∘ 전면부 유실·이격 여부<br />
-                    ∘ 수직 및 수평 변위 발생 여부<br />
-                    ∘ 철근 배근 및 거푸집 긴결 적정성
+                  <td className="border-r border-black p-2 font-bold text-center bg-slate-50">현장 육안조사</td>
+                  <td className="p-2">
+                    • 기초 지반 굴착 상태 및 지내력 확인<br />
+                    • 철근 배근 간격, 이음 길이, 결속 상태 및 스페이서 피복두께 실측<br />
+                    • 거푸집 긴결재(타이로드) 체결 및 지지대 수직도 정밀 측정
                   </td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">
-                    양호<br />없음<br />없음<br />양호
-                  </td>
-                  <td className="border-r border-black p-1.5 text-center">-<br />-<br />-<br />-</td>
-                  <td className="p-1.5 text-center font-bold text-xs">지속 관리,<br />관찰 지시</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black p-1.5 font-bold text-center">3. 주변시설</td>
-                  <td className="border-r border-black p-1.5">
-                    ∘ 배면도로 침하·융기 발생 여부<br />
-                    ∘ 주변 배수시설의 관리 상태
+                  <td className="border-r border-black p-2 font-bold text-center bg-slate-50">주변안전 및 가설</td>
+                  <td className="p-2">
+                    • 인접 지하매설물 및 비탈면 가배수로 상태 점검<br />
+                    • 안전난간대, 추락방지망, 건설기계 작업구역 통제 점검
                   </td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">없음<br />양호</td>
-                  <td className="border-r border-black p-1.5 text-center">-<br />-</td>
-                  <td className="p-1.5 text-center">-</td>
                 </tr>
                 <tr>
-                  <td className="border-r border-black p-1.5 font-bold text-center">4. 시공 중 안전관리</td>
-                  <td className="border-r border-black p-1.5">
-                    ∘ 시공전·후 현장 상태 기록 보관<br />
-                    ∘ 공사장 주변 정리 정돈 및 추락방지시설
+                  <td className="border-r border-black p-2 font-bold text-center bg-slate-50">종합평가 및 대책</td>
+                  <td className="p-2">
+                    • 점검 결과에 따른 시설물 안전성 판정 및 시공시 중점 관리사항 제시
                   </td>
-                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">양호<br />양호</td>
-                  <td className="border-r border-black p-1.5 text-center">-<br />-</td>
-                  <td className="p-1.5 text-center">-</td>
                 </tr>
               </tbody>
             </table>
@@ -447,77 +624,89 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* CHAPTER 3 COVER PAGE */}
-      {/* -------------------------------------------------------------------- */}
-      <ChapterCoverPage
-        chapterNum="제3장"
-        chapterTitle="점검대상물의 평가"
-        subsections={[
-          "3.1  점검대상 구조물 개요",
-          "3.2  사전자료 검토",
-          "3.3  주요 부재별 외관조사 결과의 분석",
-          "3.4  거푸집·동바리 공사 안전지침",
-          "3.5  안전점검 결과의 분석",
-          "3.6  인접건축물 또는 구조물의 안전성 등",
-          "3.7  공사목적물의 안전시공을 위한 임시시설 및 가설공법의 안전성",
-          "3.8  금회 점검 시 지적사항에 대한 조치결과 검토",
-          "3.9  건설공사 안전관리 검토"
-        ]}
-      />
-
-      {/* -------------------------------------------------------------------- */}
-      {/* PAGE 19: CHAPTER 3 - 3.1 & 3.2 사전자료 검토 */}
+      {/* PAGE 11: 2.5 사용장비 및 시험기기 현황 */}
       {/* -------------------------------------------------------------------- */}
       <div className="page-container font-serif text-black flex flex-col justify-between">
-        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={11} />
+        <ContentHeader chapterTitle="제2장 정기안전점검의 개요" pageNum={11} />
 
         <div className="my-1 space-y-4">
           <div>
-            <h2 className="text-base font-black text-black mb-2">3.1 점검대상 구조물 개요</h2>
-            <h3 className="text-xs font-bold text-black mb-1">3.1.1 대상시설물 현황</h3>
-            <table className="w-full text-xs border-collapse border-2 border-black">
-              <tbody>
+            <h2 className="text-base font-black text-black mb-2">2.5 사용장비 및 시험기기 현황</h2>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              본 정기안전점검에 투입된 주요 계측 및 점검 장비는 국가공인 검·교정 기준을 통과한 장비로서 규격 및 용도는 다음과 같다.
+            </p>
+
+            <table className="w-full text-[11px] border-collapse border-2 border-black text-center">
+              <thead>
+                <tr className="bg-slate-200 border-b border-black font-bold">
+                  <th className="border-r border-black p-2 w-[16%]">구 분</th>
+                  <th className="border-r border-black p-2 w-[24%]">장 비 명</th>
+                  <th className="border-r border-black p-2 w-[24%]">측 정 분 야</th>
+                  <th className="border-r border-black p-2 w-[24%]">보유 및 상태</th>
+                  <th className="p-2 w-[12%]">비 고</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black">
                 <tr>
-                  <td className="w-1/4 font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 명</td>
-                  <td className="w-3/4 p-2 font-bold">{projectName}</td>
-                </tr>
-                <tr className="border-t border-black">
-                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">공 사 위 치</td>
-                  <td className="p-2">{projectLocation}</td>
-                </tr>
-                <tr className="border-t border-black">
-                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">사 업 개 요</td>
-                  <td className="p-2 text-xs leading-relaxed">
-                    • 흙깎기(토사) 34,800m³, (리핑암) 25,931m³<br />
-                    • 옹벽 5개소 / L = 832.0m (금회 점검구간 L=180.0m)<br />
-                    • 아스팔트 포장 43,188m²
+                  <td className="border-r border-black p-2 font-bold bg-slate-50">외관조사</td>
+                  <td className="border-r border-black p-2 font-semibold">디지털 카메라 (고해상도)</td>
+                  <td className="border-r border-black p-2">현장 전경 및 부재 결함 기록</td>
+                  <td className="border-r border-black p-2 bg-slate-50 font-bold text-blue-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <Camera className="w-3.5 h-3.5 text-blue-600" />
+                      <span>[정상 작동]</span>
+                    </div>
                   </td>
+                  <td className="p-2">자체보유</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-2 font-bold bg-slate-50" rowSpan={3}>치수/제원</td>
+                  <td className="border-r border-black p-2">50m 줄자 / 5m 스틸자</td>
+                  <td className="border-r border-black p-2">배근 간격, 구조물 폭 실측</td>
+                  <td className="border-r border-black p-2 bg-slate-50 font-bold text-blue-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <Ruler className="w-3.5 h-3.5 text-blue-600" />
+                      <span>[교정 검사필]</span>
+                    </div>
+                  </td>
+                  <td className="p-2">오차±1mm</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-2">버니어캘리퍼스 (디지털)</td>
+                  <td className="border-r border-black p-2">철근 직경 및 피복두께 정밀 측정</td>
+                  <td className="border-r border-black p-2 bg-slate-50 font-bold text-blue-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <Compass className="w-3.5 h-3.5 text-blue-600" />
+                      <span>[교정 검사필]</span>
+                    </div>
+                  </td>
+                  <td className="p-2">오차±0.02</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-2">디지털 수평계 / 다림추</td>
+                  <td className="border-r border-black p-2">벽체 거푸집 수직도/연직도 측정</td>
+                  <td className="border-r border-black p-2 bg-slate-50 font-bold text-blue-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <Compass className="w-3.5 h-3.5 text-blue-600" />
+                      <span>[정밀 수평확인]</span>
+                    </div>
+                  </td>
+                  <td className="p-2">각도±0.1°</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-2 font-bold bg-slate-50">안전보호구</td>
+                  <td className="border-r border-black p-2">개인보호구(안전모, 안전대, 각반)</td>
+                  <td className="border-r border-black p-2">점검자 추락 및 낙하 방지</td>
+                  <td className="border-r border-black p-2 bg-slate-50 font-bold text-amber-900">
+                    <div className="flex items-center justify-center gap-1">
+                      <HardHat className="w-3.5 h-3.5 text-amber-600" />
+                      <span>[KCS 안전인증]</span>
+                    </div>
+                  </td>
+                  <td className="p-2">착용완료</td>
                 </tr>
               </tbody>
             </table>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-bold text-black mb-1">3.1.2 관련도면</h3>
-            <div className="border border-black p-3 text-center bg-slate-50">
-              <p className="text-xs font-bold mb-2">[위치도 및 옹벽 표준 단면도 (STA. 0+195.00 ~ 0+395.00)]</p>
-              <div className="border border-dashed border-slate-400 p-4 bg-white text-xs text-slate-700 font-sans leading-relaxed">
-                <div className="font-bold text-black mb-1">■ 1구간 / 2구간 / 3구간 L형 옹벽 표준도 및 종단면도/배근도 수록</div>
-                <p className="text-[11px] text-slate-600">- 높이 H=3.0m ~ 6.0m L형 철근콘크리트 옹벽 단면 규격 및 철근 피복(80mm) 상세도면 검토 완료</p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h2 className="text-base font-black text-black mb-2">3.2 사전자료 검토</h2>
-            <h3 className="text-xs font-bold text-black mb-1">3.2.1 지반조사 자료 및 시추주상도</h3>
-            <div className="border border-black p-3 text-center bg-slate-50 text-xs">
-              <p className="font-bold mb-2">[조사위치 평면도 및 시추주상도 DRILL LOG (BH-1, BH-2, BH-3)]</p>
-              <p className="text-slate-700 leading-relaxed text-left pl-4">
-                - 지반조사 결과 토사층, 붕적층, 풍화암 및 연암층이 순차 분포함.<br />
-                - 지반 지지력 및 N치(N&gt;50/15) 측정값 검토 결과 옹벽 기초 지반으로서의 허용지내력(qa=200kN/m² 이상) 확보 확인됨.
-              </p>
-            </div>
           </div>
         </div>
 
@@ -525,69 +714,71 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* PAGE 20: 3.3 주요 부재별 외관조사 결과의 분석 & 3.4 거푸집동바리 안전지침 */}
+      {/* PAGE 12: 2.6 점검수행 일정 및 방법 & 2.7 점검 체크리스트 */}
       {/* -------------------------------------------------------------------- */}
       <div className="page-container font-serif text-black flex flex-col justify-between">
-        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={12} />
+        <ContentHeader chapterTitle="제2장 정기안전점검의 개요" pageNum={12} />
 
-        <div className="my-1 space-y-4">
+        <div className="my-1 space-y-3">
           <div>
-            <h2 className="text-base font-black text-black mb-2">3.3 주요 부재별 외관조사 결과의 분석</h2>
-            <h3 className="text-xs font-bold text-black mb-1">3.3.1 시공 상태 점검의 개요</h3>
-            <p className="text-xs leading-relaxed text-black text-justify mb-2">
-              가. 점검의 개요: 구조물 시공 상태 점검은 공사목적물의 시공 중 또는 시공 전 불안전 요인을 발견하여 이에 대한 적절한 조치를 수립함으로써 발생 가능한 제반 문제점을 사전에 예방하는데 목적이 있다.<br />
-              나. 점검 대상 구조물의 분류 및 특성: L형 옹벽은 배면 토압에 저항하여 성토부 및 절토부의 안정성을 확보하기 위한 구조물로서 시공성과 경제성이 우수하다.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="text-base font-black text-black mb-2">3.4 거푸집·동바리 공사 안전지침</h2>
-            <h3 className="text-xs font-bold text-black mb-1">3.4.1 시공 상태 점검의 개요 및 용어의 정의</h3>
-            <p className="text-xs leading-relaxed text-black mb-2">
-              (1) 시스템 동바리: 규격화·부품화된 수직재, 수평재, 가새재 등의 부재를 공장에서 제작하여 현장에서 조립하여 사용하는 거푸집 동바리를 말한다.<br />
-              (2) U 헤드 잭: 수직재 상부에 설치하여 멍에재를 받쳐주는 조절형 받침대를 말한다.<br />
-              (3) 받침철물(잭 베이스): 수직재 하부에 설치하여 미끄러짐이나 침하를 방지하는 조절형 받침대를 말한다.
-            </p>
-
-            <h3 className="text-xs font-bold text-black mb-1">3.4.2 거푸집 동바리의 붕괴 재해의 주요원인</h3>
-            <ul className="list-disc list-inside text-xs space-y-1 pl-2 text-slate-900">
-              <li>거푸집동바리 구조검토 미실시 및 지지력 부족</li>
-              <li>거푸집동바리 재료의 불량 (부식, 균열, 변형 자재 사용)</li>
-              <li>파이프써포트 수직도 불량 및 교차가새 미설치</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-base font-black text-black mb-2">3.5 안전점검 결과의 분석</h2>
-            <h3 className="text-xs font-bold text-black mb-1">3.5.1 구조물의 품질·시공 상태 등의 적정성 (외관조사)</h3>
-            <div className="grid grid-cols-2 gap-2 text-[10px] text-center border border-black p-2 bg-slate-50">
-              <div className="border border-slate-300 p-2 bg-white flex flex-col justify-between">
-                <div>
-                  <p className="font-bold text-black mb-1">【사진 1】 옹벽 시공구간 전경 모습</p>
-                  <p className="text-slate-600 mb-2">터파기 및 기초 지반 정지 작업 상태</p>
-                </div>
-                <div className="h-20 bg-slate-100 border border-slate-200 flex items-center justify-center font-semibold text-slate-600">
-                  {hasPhotos && photos[0] ? (
-                    <img src={photos[0].url} alt="점검사진" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <span>[현장 전경 촬영 완료 - 양호]</span>
-                  )}
-                </div>
-              </div>
-              <div className="border border-slate-300 p-2 bg-white flex flex-col justify-between">
-                <div>
-                  <p className="font-bold text-black mb-1">【사진 2】 기초 철근 배근 간격 실측</p>
-                  <p className="text-slate-600 mb-2">줄자 측정 결과 설계 도서 기준 부합</p>
-                </div>
-                <div className="h-20 bg-slate-100 border border-slate-200 flex items-center justify-center font-semibold text-slate-600">
-                  {hasPhotos && photos[1] ? (
-                    <img src={photos[1].url} alt="점검사진" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <span>[줄자 측정 - 도면 기준 준수]</span>
-                  )}
-                </div>
-              </div>
+            <h2 className="text-base font-black text-black mb-1">2.6 점검수행 일정 및 방법</h2>
+            <div className="border border-black p-2.5 bg-slate-50 text-xs leading-relaxed mb-2">
+              <p><strong>• 과업수행 기간 :</strong> 2026년 05월 12일 ~ 2026년 06월 10일 (30일간)</p>
+              <p><strong>• 현장 점검일자 :</strong> {rawCheckDate || '2026년 05월 12일'}</p>
+              <p><strong>• 점검 수행자 :</strong> 책임기술자 박경포 외 참여기술자 3인 합동 점검</p>
             </div>
+          </div>
+
+          <div>
+            <h2 className="text-base font-black text-black mb-1">2.7 정기안전점검 체크리스트</h2>
+            <table className="w-full text-[10.5px] border-collapse border-2 border-black text-center">
+              <thead>
+                <tr className="bg-slate-200 border-b border-black font-bold">
+                  <th className="border-r border-black p-1.5 w-[18%]">구 분</th>
+                  <th className="border-r border-black p-1.5 w-[42%]">점 검 항 목</th>
+                  <th className="border-r border-black p-1.5 w-[15%]">점검결과</th>
+                  <th className="p-1.5 w-[25%]">조치 및 비고</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black text-left">
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">1. 기초지반</td>
+                  <td className="border-r border-black p-1.5">
+                    • 굴착 바닥면 풍화암층 도달 여부<br />
+                    • 터파기 사면의 기울기 및 붕괴 위험성
+                  </td>
+                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">적합 (양호)</td>
+                  <td className="p-1.5 text-center text-slate-700">설계지지력 확보됨</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">2. 철근공사</td>
+                  <td className="border-r border-black p-1.5">
+                    • 주철근 D19 @200 배근 간격 일치 여부<br />
+                    • 스페이서 블록 설치(피복 80mm 확보)
+                  </td>
+                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">적합 (양호)</td>
+                  <td className="p-1.5 text-center text-slate-700">도면 기준 일치</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">3. 거푸집가설</td>
+                  <td className="border-r border-black p-1.5">
+                    • 평타이 체결 상태 및 유로폼 연결 핀<br />
+                    • 벽체 수직도(연직도) 오차 ±3mm 이내
+                  </td>
+                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">적합 (양호)</td>
+                  <td className="p-1.5 text-center text-slate-700">타설 중 계측 유지</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">4. 현장안전</td>
+                  <td className="border-r border-black p-1.5">
+                    • 상부 안전난간대(H=90cm 이상) 설치<br />
+                    • 건설기계 작업반경 통제 및 신호수 배치
+                  </td>
+                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">적합 (양호)</td>
+                  <td className="p-1.5 text-center text-slate-700">안전통로 확보됨</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -595,89 +786,69 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* PAGE 21: 3.5.2 품질/자재관리 & 3.6 인접건축물/교통안전 */}
-      {/* -------------------------------------------------------------------- */}
-      <div className="page-container font-serif text-black flex flex-col justify-between">
-        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={13} />
-
-        <div className="my-1 space-y-4">
-          <div>
-            <h3 className="text-xs font-bold text-black mb-1">3.5.2 품질·자재관리의 적정성</h3>
-            <p className="text-xs leading-relaxed text-black mb-2">
-              가. 점검의 개요: 본 현장의 품질관리 적정성을 확인하기 위하여 품질관리 요원, 시험실 규모(54m² 확보), 시험기구 보유현황 등을 점검한 결과 법정 기준(18m² 이상)을 충족하고 적정하게 관리되고 있음.<br />
-              나. 품질관리자: 김위징(품질특급기술인), 김명수(품질중급기술인) 배치 완료.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="text-base font-black text-black mb-2">3.6 인접건축물 또는 구조물의 안전성 등 공사장 주변 안전조치</h2>
-            <p className="text-xs leading-relaxed text-black mb-2">
-              3.6.1 개요: 발파 및 굴착에 따른 진동, 소음, 비산분진 통제 대책 수립.<br />
-              3.6.2 지하매설물 방호: 관로망도 입수 및 지하매설물 탐사 후 입회 하 굴착 실시.<br />
-              3.6.3 건설현장 소음·진동: 규제기준(주간 65dB 이하) 준수 및 저소음 장비 사용.<br />
-              3.6.4 공사장 주변 교통안전: 안내표지판, 신호수 배치, PE 방호벽 설치 완료.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="text-base font-black text-black mb-2">3.7 ~ 3.9 안전시공, 지적사항 조치, 안전관리 검토</h2>
-            <div className="border border-black p-3 text-xs space-y-2 bg-slate-50">
-              <p><strong>3.7 임시시설 및 가설공법의 안전성:</strong> PE가설벽 및 안전난간대 견고히 설치됨.</p>
-              <p><strong>3.8 금회 점검 시 지적사항 조치:</strong> 1차 점검으로 특이 지적사항 없음.</p>
-              <p><strong>3.9 건설공사 안전관리 검토:</strong> 안전보건조직(Line-Staff 형태), 안전교육 및 비상연락망 정상 운영 중.</p>
-            </div>
-          </div>
-        </div>
-
-        <ContentFooter pageNum={13} />
-      </div>
-
-      {/* -------------------------------------------------------------------- */}
-      {/* CHAPTER 4 COVER PAGE */}
+      {/* CHAPTER 3 COVER PAGE (도비라 - 제3장 점검대상물의 평가) */}
       {/* -------------------------------------------------------------------- */}
       <ChapterCoverPage
-        chapterNum="제4장"
-        chapterTitle="종합결론"
+        chapterNum="제3장"
+        chapterTitle="점검대상물의 평가"
         subsections={[
-          "4.1  정기안전점검의 결과의 종합결론",
-          "4.2  시공 시 특별한 관리가 필요한 사항"
+          "3.1  점검대상 구조물 개요",
+          "3.2  사전자료 검토 (건설기계 및 지반조사)",
+          "3.3  구조물 시공상태 외관조사 결과의 분석",
+          "3.4  거푸집·동바리 공사 안전지침 및 안전점검 결과의 분석",
+          "3.5  인접건축물 또는 구조물의 안전성 등 공사장 주변 안전조치",
+          "3.6  임시시설 및 가설공법의 안전성",
+          "3.7  금회 점검 시 지적사항에 대한 조치결과 검토",
+          "3.8  건설공사 안전관리 검토"
         ]}
       />
 
       {/* -------------------------------------------------------------------- */}
-      {/* PAGE 23: CHAPTER 4 CONTENT */}
+      {/* PAGE 14: 3.1 점검대상 구조물 개요 (3.1.1 대상시설물 현황) */}
       {/* -------------------------------------------------------------------- */}
       <div className="page-container font-serif text-black flex flex-col justify-between">
-        <ContentHeader chapterTitle="제4장 종합결론" pageNum={14} />
+        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={14} />
 
         <div className="my-1 space-y-4">
           <div>
-            <h2 className="text-base font-black text-black mb-2">4.1 정기안전점검의 결과의 종합결론</h2>
-            <p className="text-xs leading-relaxed text-black text-justify indent-2 mb-3">
-              본 과업은 <strong className="font-bold">&ldquo;{projectName}&rdquo;</strong> 중 4차로 확포장공사를 위한 {targetName} 작업에 정기안전점검 용역으로서 대상시설물에 대한 고품질의 안전시공을 달성하기 위하여 현장점검 및 관련자료 분석 등을 실시하였으며, 그 결과는 다음과 같다.
+            <h2 className="text-base font-black text-black mb-2">3.1 점검대상 구조물 개요</h2>
+            <h3 className="text-xs font-bold text-black mb-1">3.1.1 대상시설물 현황</h3>
+            <p className="text-xs leading-relaxed text-black text-justify indent-2 mb-2">
+              점검대상 구조물인 &ldquo;{targetName}&rdquo;은 본 공사 구간 내 성토부 및 절토 사면의 안정성을 확보하고 도로 폭원을 확장하기 위해 시공 중인 영구 구조물로서 주요 제원 및 현황은 다음과 같다.
             </p>
-            <div className="border border-black p-3 text-xs space-y-2 leading-relaxed bg-slate-50">
-              <p>• <strong>품질·시공 상태:</strong> 기초 터파기 및 철근배근 상태가 설계도서 및 시방서 기준에 부합함.</p>
-              <p>• <strong>품질·자재관리:</strong> 중급 품질관리 대상에 맞는 인력 및 시험실(54m²)을 적정하게 확보함.</p>
-              <p>• <strong>안전시설 및 주변조치:</strong> PE방호벽, 안전난간대, 입간판 설치로 통행자 및 근로자 안전 확보.</p>
-            </div>
-          </div>
 
-          <div>
-            <h2 className="text-base font-black text-black mb-2">4.2 시공 시 특별한 관리가 필요한 사항</h2>
-            <div className="space-y-2 text-xs leading-relaxed pl-2">
-              <p><strong>4.2.1 시공관리사항:</strong> 거푸집 측압에 대한 구조검토 준수 및 콘크리트 시간당 타설 높이(0.6m/h 이하) 관리 철저.</p>
-              <p><strong>4.2.2 안전관리사항:</strong> 고소작업 시 추락방지를 위한 생명로프 및 안전대 착용 감독 강화, 5m 이상 작업 시 전담 안전담당자 지정.</p>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t-2 border-black">
-            <h2 className="text-base font-black text-black mb-2">◉ 부 록</h2>
-            <div className="pl-4 text-xs font-bold space-y-1">
-              <p>1. 정기안전점검 현장 사진대지 (Photo Log)</p>
-              <p>2. 안전관련자료 (합동 안전·보건점검표, 교육일지 및 서약서 등)</p>
-              <p>3. 설계안전성검토보고서</p>
-            </div>
+            <table className="w-full text-xs border-collapse border-2 border-black text-left">
+              <tbody className="divide-y divide-black">
+                <tr>
+                  <td className="w-1/4 font-extrabold p-2 bg-slate-200 border-r border-black text-center">시 설 물 명</td>
+                  <td className="w-3/4 p-2 font-bold">{targetName} (L형 철근콘크리트 옹벽)</td>
+                </tr>
+                <tr>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">설 계 규 격</td>
+                  <td className="p-2 leading-relaxed">
+                    • 높이(H): 3.0m ~ 5.0m (평균 H=4.0m)<br />
+                    • 저판폭(B): 2.2m ~ 2.6m, 벽체상단폭(tw): 400mm<br />
+                    • 연장(L): 총 832.0m (금회 점검구간 L=180.0m)
+                  </td>
+                </tr>
+                <tr>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">사 용 재 료</td>
+                  <td className="p-2 leading-relaxed">
+                    • 콘크리트 설계기준압축강도: fck = 24 MPa<br />
+                    • 철근 규격: SD400 (D19 주철근, D13 배력근)<br />
+                    • 버림 콘크리트: fck = 18 MPa (t=100mm)
+                  </td>
+                </tr>
+                <tr>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">기 초 형 식</td>
+                  <td className="p-2">풍화암 직접기초 (잡석다짐 t=200mm 포설 후 타설)</td>
+                </tr>
+                <tr>
+                  <td className="font-extrabold p-2 bg-slate-200 border-r border-black text-center">배 수 처 리</td>
+                  <td className="p-2">PVC 배수공(Φ50mm @ 2.0m 간격) + 쇄석 뒤채움(t=300mm) + 부직포</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -685,23 +856,415 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* APPENDIX COVER PAGE */}
+      {/* PAGE 15: 3.1.2 관련도면 (표준 단면도 및 배근 상세도 정밀 CAD 도면) */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={15} />
+
+        <div className="my-1 space-y-3">
+          <div>
+            <h3 className="text-xs font-bold text-black mb-1">3.1.2 관련도면</h3>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              설계도서에 수록된 옹벽의 표준단면도 및 배근상세도를 검토하여 현장 시공 규격과의 일치 여부를 대조·평가하였다.
+            </p>
+
+            {/* High-Fidelity Engineering SVG Drawing */}
+            <RetainingWallEngineeringDrawing targetName={targetName} />
+
+            <div className="border border-black p-2 bg-slate-50 text-[11px] leading-relaxed">
+              <p className="font-bold text-black">• 설계도면 기술검토 결과:</p>
+              <p className="text-slate-800">
+                L형 옹벽 저판 및 벽체 접합부 헌치(Haunch) 보강 상세가 적정하게 반영되어 있으며, 뒤채움 배수재(쇄석 및 부직포)의 시공 상세가 배면 수압 증가를 차단하도록 적합하게 설계되었음을 확인함.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <ContentFooter pageNum={15} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* PAGE 16: 3.1.3 투입인원 및 장비계획 */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={16} />
+
+        <div className="my-1 space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-black mb-1">3.1.3 투입인원 및 장비계획</h3>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              본 공사 구간의 시공 및 안전관리를 위해 투입된 분야별 전문 인력 및 주요 건설기계 현황은 다음과 같다.
+            </p>
+
+            <h4 className="text-xs font-bold text-slate-900 mb-1">가. 기술진 및 현장 인력 투입 현황</h4>
+            <table className="w-full text-xs border-collapse border-2 border-black text-center mb-3">
+              <thead>
+                <tr className="bg-slate-200 border-b border-black font-bold">
+                  <th className="border-r border-black p-1.5 w-1/4">직 책</th>
+                  <th className="border-r border-black p-1.5 w-1/4">성 명</th>
+                  <th className="border-r border-black p-1.5 w-1/4">보유 자격</th>
+                  <th className="p-1.5 w-1/4">담당 업무</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black text-[11px]">
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold">현장대리인</td>
+                  <td className="border-r border-black p-1.5">이 정 훈</td>
+                  <td className="border-r border-black p-1.5">토목특급기술자</td>
+                  <td className="p-1.5">공사 총괄 관리</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold">안전관리자</td>
+                  <td className="border-r border-black p-1.5">김 성 진</td>
+                  <td className="border-r border-black p-1.5">산업안전기사</td>
+                  <td className="p-1.5">현장 안전관리 전담</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold">품질관리자</td>
+                  <td className="border-r border-black p-1.5">박 지 원</td>
+                  <td className="border-r border-black p-1.5">품질특급기술자</td>
+                  <td className="p-1.5">시험실 운영 및 자재검수</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="text-xs font-bold text-slate-900 mb-1">나. 주요 건설기계 투입 현황</h4>
+            <table className="w-full text-xs border-collapse border-2 border-black text-center">
+              <thead>
+                <tr className="bg-slate-200 border-b border-black font-bold">
+                  <th className="border-r border-black p-1.5 w-1/4">장 비 명</th>
+                  <th className="border-r border-black p-1.5 w-1/4">규 격</th>
+                  <th className="border-r border-black p-1.5 w-1/4">수 량</th>
+                  <th className="p-1.5 w-1/4">작업 용도</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black text-[11px]">
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold">굴삭기(백호)</td>
+                  <td className="border-r border-black p-1.5">0.8 ~ 1.0 m³</td>
+                  <td className="border-r border-black p-1.5">2 대</td>
+                  <td className="p-1.5">기초 터파기 및 상차</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold">덤프트럭</td>
+                  <td className="border-r border-black p-1.5">25.5 ton</td>
+                  <td className="border-r border-black p-1.5">4 대</td>
+                  <td className="p-1.5">토사 및 암반 반출</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold">콘크리트 펌프카</td>
+                  <td className="border-r border-black p-1.5">붐길이 43m</td>
+                  <td className="border-r border-black p-1.5">1 대</td>
+                  <td className="p-1.5">기초 및 벽체 타설</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <ContentFooter pageNum={16} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* PAGE 17: 3.2 사전자료 검토 (3.2.1 건설기계 안전점검 & 3.2.2 지반조사) */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={17} />
+
+        <div className="my-1 space-y-3">
+          <div>
+            <h2 className="text-base font-black text-black mb-1">3.2 사전자료 검토</h2>
+            <h3 className="text-xs font-bold text-black mb-1">3.2.1 건설기계 안전점검</h3>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              건설기계관리법 및 산업안전보건기준에 관한 규칙에 따라 현장 반입 장비의 등록증, 정기검사필증, 보험가입증명서를 전수 확인한 결과 적합함.
+            </p>
+
+            <h3 className="text-xs font-bold text-black mb-1">3.2.2 지반조사 자료 및 시추주상도</h3>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              설계 지반조사보고서(시추공 BH-1 ~ BH-3) 분석 결과, 옹벽 기초 지지층은 풍화암(N&gt;50) 층에 정착되도록 계획되었으며 지반 지내력은 설계 기준(qa=200kN/m²)을 상회하는 250kN/m² 이상으로 안정성을 확보함.
+            </p>
+
+            {/* Geotechnical Diagram Component */}
+            <GeotechnicalBoreholeDiagram />
+          </div>
+        </div>
+
+        <ContentFooter pageNum={17} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* PAGE 18: 3.3 외관조사 결과의 분석 & 3.4 거푸집·동바리 안전지침 */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={18} />
+
+        <div className="my-1 space-y-3">
+          <div>
+            <h2 className="text-base font-black text-black mb-1">3.3 주요 부재별 외관조사 결과의 분석</h2>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              현장 육안조사 결과, 터파기 바닥면의 지하수 용출이나 연약층 혼재 없이 견고한 암반이 노출되었으며, 철근의 가공 조립 상태 및 간격(D19@200)이 정밀하게 시공되어 결함 요인이 없음.
+            </p>
+
+            <h2 className="text-base font-black text-black mb-1">3.4 거푸집·동바리 공사 안전지침</h2>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              KCS 14 20 12(거푸집 및 동바리공사 표준시방서) 및 국토교통부 가설공사 안전기준에 의거하여 거푸집 조립 상태의 적정성을 평가함.
+            </p>
+
+            {/* Formwork Safety Diagram */}
+            <FormworkSafetyDiagram />
+
+            <div className="border border-black p-2 bg-slate-50 text-[11px] leading-relaxed">
+              <p className="font-bold text-black">• 안전점검 기술 소견:</p>
+              <p className="text-slate-800">
+                벽체 거푸집의 상·하부 긴결재(타이로드)가 적정 간격으로 체결되었고, 타설 시 편심 하중을 억제하기 위한 경사 버팀대(Support)가 바닥 앵커에 견고히 정착되어 전도 및 배부름 위험이 없음.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <ContentFooter pageNum={18} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* PAGE 19: 3.4.2 품질·자재관리의 적정성 */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={19} />
+
+        <div className="my-1 space-y-4">
+          <div>
+            <h3 className="text-xs font-bold text-black mb-1">3.4.2 품질·자재관리의 적정성</h3>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              건설기술 진흥법 제55조에 따른 품질관리계획서 이행 상태 및 현장 시험실 운영 실태를 점검함.
+            </p>
+
+            <table className="w-full text-xs border-collapse border-2 border-black text-center mb-3">
+              <thead>
+                <tr className="bg-slate-200 border-b border-black font-bold">
+                  <th className="border-r border-black p-2 w-1/4">점 검 항 목</th>
+                  <th className="border-r border-black p-2 w-1/4">법 정 기 준</th>
+                  <th className="border-r border-black p-2 w-1/4">현 장 확 인 값</th>
+                  <th className="p-2 w-1/4">적 정 여 부</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black text-[11px]">
+                <tr>
+                  <td className="border-r border-black p-2 font-bold">시험실 면적</td>
+                  <td className="border-r border-black p-2">18.0 m² 이상</td>
+                  <td className="border-r border-black p-2 font-bold">54.0 m² 확보</td>
+                  <td className="p-2 font-bold text-emerald-800">적합 (충족)</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-2 font-bold">품질관리 인력</td>
+                  <td className="border-r border-black p-2">중급 품질관리 대상(2인 이상)</td>
+                  <td className="border-r border-black p-2 font-bold">특급 1인, 중급 1인 상주</td>
+                  <td className="p-2 font-bold text-emerald-800">적합 (충족)</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-2 font-bold">콘크리트 압축강도</td>
+                  <td className="border-r border-black p-2">fck ≥ 24.0 MPa</td>
+                  <td className="border-r border-black p-2 font-bold">28일 강도 26.8 MPa</td>
+                  <td className="p-2 font-bold text-emerald-800">적합 (기준통과)</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-2 font-bold">철근 인장강도/밀시트</td>
+                  <td className="border-r border-black p-2">KS D 3504 규격</td>
+                  <td className="border-r border-black p-2 font-bold">항복강도 485 MPa</td>
+                  <td className="p-2 font-bold text-emerald-800">적합 (KS 인증품)</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="border border-black p-3 bg-slate-50 text-xs space-y-1">
+              <p className="font-bold text-black">• 자재 반입 및 검수 관리:</p>
+              <p className="text-slate-800 leading-relaxed">
+                반입된 철근은 녹 발생 방지를 위해 하부 침목 받침 및 방수 천막을 덮어 보관 중이며, 레미콘 송장(출하표) 확인 결과 슬럼프(150mm), 공기량(4.5±1.5%), 염화물량(0.30kg/m³ 이하)이 시방 기준을 완전 충족함.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <ContentFooter pageNum={19} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* PAGE 20: 3.5 인접건축물/구조물 안전성 및 주변 안전조치 적정성 */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={20} />
+
+        <div className="my-1 space-y-4">
+          <div>
+            <h2 className="text-base font-black text-black mb-2">
+              3.5 인접건축물 또는 구조물의 안전성 등 공사장 주변 안전조치의 적정성
+            </h2>
+            <div className="space-y-3 text-xs leading-relaxed">
+              <div className="border border-black p-2.5 bg-slate-50">
+                <p className="font-bold text-black mb-1">3.5.1 개요 및 주변 환경 영향 평가</p>
+                <p className="text-slate-800">
+                  공사장 주변 기존 도로 및 통행 차량, 인접 민가에 대한 영향을 최소화하기 위해 공사장 경계부에 가설 휀스(H=2.4m) 및 낙하물 방지망을 완비하였음.
+                </p>
+              </div>
+
+              <div className="border border-black p-2.5 bg-slate-50">
+                <p className="font-bold text-black mb-1">3.5.2 현장 인접 지하매설물 방호 및 안전대책</p>
+                <p className="text-slate-800">
+                  굴착 전 지하시설물 유관기관(한전, KT, 상수도사업소, 도시가스)과 합동 탐사 및 줄파기를 실시하여 매설 위치를 특정하였으며, 보호관 설치 및 침하 계측핀을 설치하여 일상 모니터링 중임.
+                </p>
+              </div>
+
+              <div className="border border-black p-2.5 bg-slate-50">
+                <p className="font-bold text-black mb-1">3.5.3 건설현장 소음·진동 및 교통안전 관리</p>
+                <p className="text-slate-800">
+                  소음진동관리법에 따른 생활소음 규제기준(주간 65dB 이하)을 철저히 준수하고 있으며, 도로 인접 작업구간에 신호수 2인 배치 및 PE 방호벽, 야간 경광등을 설치하여 안전사고를 예방함.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ContentFooter pageNum={20} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* PAGE 21: 3.6 ~ 3.8 임시시설 안전성, 지적사항 조치 및 안전관리체계 */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제3장 점검대상물의 평가" pageNum={21} />
+
+        <div className="my-1 space-y-3">
+          <div>
+            <h2 className="text-base font-black text-black mb-1">3.6 임시시설 및 가설공법의 안전성</h2>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              절토 사면 상부 유수 유입 방지를 위한 산마루 가배수로(비닐 덮개 포설)와 가설 승강 통로(발판, 안전난간)가 규격에 맞게 설치됨.
+            </p>
+
+            <h2 className="text-base font-black text-black mb-1">3.7 금회 점검 시 지적사항에 대한 조치결과 검토</h2>
+            <p className="text-xs leading-relaxed text-black mb-2">
+              금회는 {checkDegree} 정기안전점검으로서 이전 지적사항은 없으며, 금회 점검 시 도출된 권고사항(타설 시 수직도 지속 계측)은 현장 즉시 조치 지시함.
+            </p>
+
+            <h2 className="text-base font-black text-black mb-1">3.8 건설공사 안전관리 검토</h2>
+            <p className="text-xs leading-relaxed text-black mb-1">
+              산업안전보건법 및 건설기술진흥법에 따른 안전보건관리 조직 체계 및 안전교육(일일 TBM, 정기교육) 실시 상태가 극히 양호함.
+            </p>
+
+            {/* Safety Org Chart Component */}
+            <SafetyOrgChart contractor={contractor} leadEngineer={leadEngineer} />
+          </div>
+        </div>
+
+        <ContentFooter pageNum={21} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* CHAPTER 4 COVER PAGE (도비라 - 제4장 종합결론) */}
       {/* -------------------------------------------------------------------- */}
       <ChapterCoverPage
-        chapterNum="부록"
-        chapterTitle="현장 점검 사진대지 및 안전자료"
+        chapterNum="제4장"
+        chapterTitle="종 합 결 론"
         subsections={[
-          "부록 1. 정기안전점검 현장 사진대지 (Photo Log)",
-          "부록 2. 안전점검 종합 체크리스트",
-          "부록 3. 관련 시험 성적서 및 안전관리 서류"
+          "4.1  정기안전점검 결과의 종합결론",
+          "4.2  시공 시 특별한 관리가 필요한 사항",
+          "4.3  종합결론 및 건의사항"
         ]}
       />
 
       {/* -------------------------------------------------------------------- */}
-      {/* APPENDIX PAGE 1: 현장 점검 사진대지 (1/2) - (Photo Log 1 ~ 4) */}
+      {/* PAGE 23: CHAPTER 4 - 4.1 종합결론 */}
       {/* -------------------------------------------------------------------- */}
       <div className="page-container font-serif text-black flex flex-col justify-between">
-        <ContentHeader chapterTitle="부록 1. 정기안전점검 현장 사진대지" pageNum={15} />
+        <ContentHeader chapterTitle="제4장 종합결론" pageNum={23} />
+
+        <div className="my-1 space-y-4">
+          <div>
+            <h2 className="text-base font-black text-black mb-2">4.1 정기안전점검 결과의 종합결론</h2>
+            <p className="text-xs leading-relaxed text-black text-justify indent-2 mb-3">
+              본 과업은 <strong className="font-bold">&ldquo;{projectName}&rdquo;</strong> 중 {targetName} 공사에 대하여 「건설기술 진흥법」 제62조에 의거 실시한 {checkDegree} 정기안전점검으로서, 대상 구조물에 대한 면밀한 현장 육안조사, 설계도서 검토 및 관련 공학적 분석을 실시한 결과 다음과 같이 종합 평가되었다.
+            </p>
+
+            <div className="border-2 border-black p-3.5 bg-white space-y-2 text-xs leading-relaxed">
+              <p>
+                <strong>1) 공사목적물의 품질·시공 상태:</strong><br />
+                기초 터파기 지반은 설계 지지력(qa=200kN/m²)을 만족하는 풍화암층에 도달하였으며, 철근 배근 간격(D19@200) 및 피복두께(80mm)가 설계기준에 정확히 부합하여 시공 상태가 극히 양호함.
+              </p>
+              <p>
+                <strong>2) 품질·자재관리의 적정성:</strong><br />
+                현장 시험실(54m²) 및 품질관리 인력(특급 1인, 중급 1인)이 법정 기준을 충족하고 있으며, 반입 자재의 공인기관 시험성적서 및 압축강도(26.8MPa)가 기준 강도를 상회함.
+              </p>
+              <p>
+                <strong>3) 가설시설 및 주변 안전조치:</strong><br />
+                벽체 거푸집 지지대 및 긴결재가 견고히 체결되었고, 안전난간대, 추락방지망 및 교통안전 신호수 배치가 적절하여 안전성이 확보됨.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <ContentFooter pageNum={23} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* PAGE 24: 4.2 특별 관리사항 & 4.3 종합결론 및 건의사항 */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="제4장 종합결론" pageNum={24} />
+
+        <div className="my-1 space-y-4">
+          <div>
+            <h2 className="text-base font-black text-black mb-2">4.2 시공 시 특별한 관리가 필요한 사항</h2>
+            <div className="space-y-2 text-xs leading-relaxed">
+              <div className="border border-black p-2.5 bg-slate-50">
+                <p className="font-bold text-black mb-1">가. 콘크리트 타설 및 양생 관리</p>
+                <p className="text-slate-800">
+                  1) 거푸집 측압에 의한 변형을 방지하기 위해 시간당 타설 속도를 0.8m/h 이하로 유지하고 층별 다짐을 철저히 할 것.<br />
+                  2) 타설 직후 비닐 덮개 및 보온 양생포를 포설하여 초기 건조 수축 균열을 예방할 것.
+                </p>
+              </div>
+
+              <div className="border border-black p-2.5 bg-slate-50">
+                <p className="font-bold text-black mb-1">나. 되메우기 및 배수재 시공 관리</p>
+                <p className="text-slate-800">
+                  1) 벽체 콘크리트 압축강도가 설계기준강도의 70% 이상 발현된 후 뒤채움 및 되메우기 작업을 실시할 것.<br />
+                  2) PVC 배수공 및 쇄석 뒤채움 필터부직포가 손상되지 않도록 다짐 장비의 충격을 방지할 것.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-base font-black text-black mb-2">4.3 종합결론 및 건의사항</h2>
+            <p className="text-xs leading-relaxed text-black text-justify indent-2">
+              금회 {checkDegree} 정기안전점검 결과 구조물 및 가설시설의 전반적인 안전성은 양호한 상태로 평가되며, 향후 후속 공정 진행 시에도 본 보고서에 수록된 특별 관리사항 및 안전수칙을 엄수하여 무재해 현장으로 준공될 수 있도록 관리에 만전을 기할 것을 건의합니다.
+            </p>
+          </div>
+
+          <div className="pt-2 flex justify-end items-center gap-2 font-bold text-xs text-black">
+            <span>책임기술자 : {leadEngineer}</span>
+            <EngineerPersonalSeal name={leadEngineer} />
+          </div>
+        </div>
+
+        <ContentFooter pageNum={24} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* APPENDIX COVER PAGE (도비라 - 부 록) */}
+      {/* -------------------------------------------------------------------- */}
+      <ChapterCoverPage
+        chapterNum="부 록"
+        chapterTitle="현장 점검 사진대지 및 안전자료"
+        subsections={[
+          "부록 1. 정기안전점검 현장 사진대지 (Photo Log 1 ~ 6)",
+          "부록 2. 합동 안전·보건점검표 및 체크리스트",
+          "부록 3. 관련 품질시험 성적서 및 공사 안전관리 서류"
+        ]}
+      />
+
+      {/* -------------------------------------------------------------------- */}
+      {/* APPENDIX PAGE 1: 현장 점검 사진대지 (Photo Log 1 ~ 4) */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="부록 1. 정기안전점검 현장 사진대지" pageNum={26} />
 
         <div className="my-1 space-y-3">
           <div className="flex justify-between items-center border-b-2 border-black pb-1">
@@ -718,7 +1281,7 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
                   <div className="w-full h-36 bg-slate-100 overflow-hidden border border-slate-300 flex items-center justify-center mb-1">
                     <img src={photo.url} alt={photo.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
-                  <table className="w-full text-[11px] border-collapse border border-black text-left mt-1">
+                  <table className="w-full text-[10.5px] border-collapse border border-black text-left mt-1">
                     <tbody>
                       <tr>
                         <td className="w-1/4 bg-slate-100 font-bold p-1 border-r border-b border-black text-center">사진제목</td>
@@ -746,7 +1309,7 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
                     <p className="font-black text-xs text-slate-800">{sample.title}</p>
                     <p className="text-[10px] text-slate-500 mt-1">{sample.desc}</p>
                   </div>
-                  <table className="w-full text-[11px] border-collapse border border-black text-left mt-1">
+                  <table className="w-full text-[10.5px] border-collapse border border-black text-left mt-1">
                     <tbody>
                       <tr>
                         <td className="w-1/4 bg-slate-100 font-bold p-1 border-r border-b border-black text-center">사진제목</td>
@@ -759,7 +1322,7 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
                         <td className="p-1 border-b border-black font-bold text-emerald-800 text-center">{sample.status}</td>
                       </tr>
                       <tr>
-                        <td className="bg-slate-100 font-bold p-1 border-r border-black text-center">점검내용</td>
+                        <td className="bg-slate-100 font-bold p-1 border-r border-b border-black text-center">점검내용</td>
                         <td className="p-1" colSpan={3}>{sample.result} ({sample.action})</td>
                       </tr>
                     </tbody>
@@ -770,14 +1333,14 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
           </div>
         </div>
 
-        <ContentFooter pageNum={15} />
+        <ContentFooter pageNum={26} />
       </div>
 
       {/* -------------------------------------------------------------------- */}
-      {/* APPENDIX PAGE 2: 현장 점검 사진대지 (2/2) - (Photo Log 5 ~ 6) + 안전점검 총괄표 */}
+      {/* APPENDIX PAGE 2: 현장 점검 사진대지 (Photo Log 5 ~ 6) + 안전점검 총괄표 */}
       {/* -------------------------------------------------------------------- */}
       <div className="page-container font-serif text-black flex flex-col justify-between">
-        <ContentHeader chapterTitle="부록 1. 정기안전점검 현장 사진대지" pageNum={16} />
+        <ContentHeader chapterTitle="부록 1. 정기안전점검 현장 사진대지" pageNum={27} />
 
         <div className="my-1 space-y-3">
           <div className="flex justify-between items-center border-b-2 border-black pb-1">
@@ -803,7 +1366,7 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
                       </>
                     )}
                   </div>
-                  <table className="w-full text-[11px] border-collapse border border-black text-left mt-1">
+                  <table className="w-full text-[10.5px] border-collapse border border-black text-left mt-1">
                     <tbody>
                       <tr>
                         <td className="w-1/4 bg-slate-100 font-bold p-1 border-r border-b border-black text-center">사진제목</td>
@@ -816,7 +1379,7 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
                         <td className="p-1 border-b border-black font-bold text-emerald-800 text-center">{item.status || '양호'}</td>
                       </tr>
                       <tr>
-                        <td className="bg-slate-100 font-bold p-1 border-r border-black text-center">점검내용</td>
+                        <td className="bg-slate-100 font-bold p-1 border-r border-b border-black text-center">점검내용</td>
                         <td className="p-1" colSpan={3}>{item.findings || item.result || '설계 도서 기준 준수 상태 양호'}</td>
                       </tr>
                     </tbody>
@@ -861,9 +1424,91 @@ export const ReportViewerChapters: React.FC<ChaptersProps> = ({
           </div>
         </div>
 
-        <ContentFooter pageNum={16} />
+        <ContentFooter pageNum={27} />
+      </div>
+
+      {/* -------------------------------------------------------------------- */}
+      {/* APPENDIX PAGE 3: 합동 안전·보건점검표 및 품질시험 총괄표 */}
+      {/* -------------------------------------------------------------------- */}
+      <div className="page-container font-serif text-black flex flex-col justify-between">
+        <ContentHeader chapterTitle="부록 2 & 3. 안전·품질 총괄 서류" pageNum={28} />
+
+        <div className="my-1 space-y-4">
+          <div>
+            <h2 className="text-sm font-black text-black mb-1">
+              ■ 부록 2. 노·사 합동 안전보건점검표 (국토교통부 표준양식)
+            </h2>
+            <table className="w-full text-[10.5px] border-collapse border-2 border-black text-center">
+              <thead>
+                <tr className="bg-slate-200 border-b border-black font-bold">
+                  <th className="border-r border-black p-1.5 w-[25%]">점검분야</th>
+                  <th className="border-r border-black p-1.5 w-[50%]">세부 점검 및 이행 상태</th>
+                  <th className="border-r border-black p-1.5 w-[12%]">판정</th>
+                  <th className="p-1.5 w-[13%]">서명</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black text-left">
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">안전보건교육</td>
+                  <td className="border-r border-black p-1.5">신규 채용자 교육 및 매일 아침 TBM 100% 실시</td>
+                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">양호</td>
+                  <td className="p-1.5 text-center">김성진(인)</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">위험성평가</td>
+                  <td className="border-r border-black p-1.5">옹벽 굴착 및 타설 공종 수시 위험성평가 실시 완료</td>
+                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">양호</td>
+                  <td className="p-1.5 text-center">이정훈(인)</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">근로자 보호구</td>
+                  <td className="border-r border-black p-1.5">안전모 턱끈 체결 및 2m 이상 고소 작업 안전대 지급</td>
+                  <td className="border-r border-black p-1.5 text-center font-bold text-emerald-800">양호</td>
+                  <td className="p-1.5 text-center">근로자대표(인)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <h2 className="text-sm font-black text-black mb-1">
+              ■ 부록 3. 관련 품질시험성적서 및 안전관리 서류 검토 총괄표
+            </h2>
+            <table className="w-full text-[10.5px] border-collapse border-2 border-black text-center">
+              <thead>
+                <tr className="bg-slate-200 border-b border-black font-bold">
+                  <th className="border-r border-black p-1.5 w-[20%]">서류 및 성적서명</th>
+                  <th className="border-r border-black p-1.5 w-[25%]">발행기관/시험처</th>
+                  <th className="border-r border-black p-1.5 w-[35%]">시험 및 검토 결과</th>
+                  <th className="p-1.5 w-[20%]">보관처</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black text-left">
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">레미콘 압축강도</td>
+                  <td className="border-r border-black p-1.5">공인품질시험원</td>
+                  <td className="border-r border-black p-1.5">fck=24MPa 대비 26.8MPa 발현 (합격)</td>
+                  <td className="p-1.5 text-center">현장 시험실</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">철근 Mill Sheet</td>
+                  <td className="border-r border-black p-1.5">현대제철(주)</td>
+                  <td className="border-r border-black p-1.5">KS D 3504 규격 및 화학성분 적합</td>
+                  <td className="p-1.5 text-center">공무부철</td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 font-bold text-center bg-slate-50">안전관리계획서</td>
+                  <td className="border-r border-black p-1.5">국토안전관리원</td>
+                  <td className="border-r border-black p-1.5">조건부 적정 승인 및 보완조치 완료</td>
+                  <td className="p-1.5 text-center">안전관리부</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <ContentFooter pageNum={28} />
       </div>
     </>
   );
 };
-
